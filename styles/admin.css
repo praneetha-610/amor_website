@@ -1,0 +1,80 @@
+/* ═════════════ ADMIN (phone-first) ═════════════ */
+.admin { max-width: 1100px; margin: 0 auto; padding: 20px var(--gutter) 80px; --accent: var(--yellow); }
+.admin--login { min-height: 100vh; display: grid; place-items: center; }
+.admin-login { width: min(420px, 100%); display: grid; gap: 14px; }
+.admin-login h1 { font-size: 2.4rem; font-weight: 900; letter-spacing: -0.04em; }
+.admin-login label { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.18em; }
+.admin-login input { height: 58px; padding: 0 16px; border: 2px solid var(--ink); border-radius: var(--r); font-size: 1.0625rem; background: #fff; }
+.admin-note { padding: 10px 14px; background: #fff3b0; border: 1px solid var(--ink); font-size: 0.8125rem; font-weight: 600; border-radius: var(--r); margin: 10px 0; }
+.admin__top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+.admin__brand { font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.22em; }
+.admin__top h1 { font-size: 2rem; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
+.admin__h { font-size: 0.8125rem; font-weight: 800; letter-spacing: 0.18em; margin: 28px 0 12px; }
+.admin__h small { font-weight: 600; letter-spacing: 0; }
+
+.a-today { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.a-card { padding: 16px; border-radius: 8px; display: grid; gap: 2px; }
+.a-card--cheese { background: var(--yellow); color: var(--ink); }
+.a-card--nashville { background: var(--red); color: #fff; }
+.a-card__name { font-size: 0.6875rem; font-weight: 900; letter-spacing: 0.18em; }
+.a-card__sold { font-size: clamp(1.6rem, 6vw, 2.4rem); font-weight: 900; letter-spacing: -0.04em; line-height: 1.05; }
+.a-card__sold small { font-size: 0.6875rem; letter-spacing: 0.14em; }
+.a-card__left { font-size: 1.1rem; font-weight: 900; }
+.a-card__sub { font-size: 0.75rem; opacity: 0.85; }
+
+.a-filters { margin-top: 22px; display: grid; gap: 10px; }
+.a-search, .a-status select, .a-range input { height: 54px; width: 100%; padding: 0 14px; border: 2px solid var(--ink); border-radius: var(--r); font-size: 1.0625rem; background: #fff; }
+.a-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.a-chips button { min-height: 44px; padding: 0 16px; border: 2px solid var(--ink); background: #fff; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.1em; border-radius: 999px; }
+.a-chips button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.a-range { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.a-range label { display: grid; gap: 4px; font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.16em; }
+
+.a-totals { margin-top: 16px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.a-totals div { background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 10px 6px; text-align: center; }
+.a-totals b { display: block; font-size: 1.4rem; font-weight: 900; letter-spacing: -0.03em; }
+.a-totals span { font-size: 0.5625rem; font-weight: 800; letter-spacing: 0.08em; }
+
+/* table → cards on phones */
+.a-table { width: 100%; border-collapse: collapse; }
+.a-table thead { display: none; }
+.a-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 14px; margin-bottom: 10px; background: #fff; border: 2px solid var(--ink); border-radius: 8px; }
+.a-table tr[data-status="cancelled"] { opacity: 0.55; }
+.a-table td { display: block; font-size: 0.9375rem; }
+.a-table td[data-label]::before { content: attr(data-label); display: block; font-size: 0.5625rem; font-weight: 800; letter-spacing: 0.16em; color: var(--muted); }
+.a-id { grid-column: 1 / -1; font-size: 1.5rem !important; font-weight: 900; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.a-qty { font-weight: 900; font-size: 1.2rem !important; }
+.a-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; padding-top: 6px; }
+.a-actions:empty { display: none; }
+.a-btn { min-height: 46px; padding: 0 16px; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.1em; border: 2px solid var(--ink); background: #fff; border-radius: var(--r); flex: 1 1 auto; }
+.a-btn--go { background: #0c7a3a; border-color: #0c7a3a; color: #fff; flex: 2 1 140px; }
+.a-btn--danger { color: var(--red); border-color: var(--red); }
+.a-btn:disabled { opacity: 0.5; }
+.a-burger { font-weight: 800; font-size: 0.75rem; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 3px; display: inline-block; }
+.a-burger--cheese { background: var(--yellow); }
+.a-burger--nashville { background: var(--red); color: #fff; }
+.a-status-pill { font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.1em; padding: 3px 8px; border: 2px solid currentColor; border-radius: 999px; display: inline-block; }
+.a-status-pill--confirmed { color: #0b57d0; }
+.a-status-pill--completed { color: #0c7a3a; }
+.a-status-pill--cancelled { color: var(--red); text-decoration: line-through; }
+.a-status-pill--no_show { color: #9a5b00; }
+.a-table--daily td b { font-weight: 900; }
+
+@media (min-width: 900px) {
+  .a-today { max-width: 560px; }
+  .a-table thead { display: table-header-group; }
+  .a-table tr { display: table-row; padding: 0; margin: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+  .a-table th { text-align: left; font-size: 0.6875rem; letter-spacing: 0.14em; padding: 10px 8px; border-bottom: 2px solid var(--ink); }
+  .a-table td { display: table-cell; padding: 12px 8px; vertical-align: middle; }
+  .a-table td[data-label]::before { display: none; }
+  .a-id { font-size: 1.05rem !important; }
+  .a-qty { font-size: 1rem !important; }
+  .a-actions { display: table-cell; white-space: nowrap; }
+  .a-actions .a-btn { flex: none; min-height: 36px; margin-right: 6px; }
+}
+
+/* prevent grid children from forcing horizontal scroll on narrow phones */
+.admin { overflow-x: clip; }
+.a-filters > *, .a-range > *, .a-range input, .a-status select { min-width: 0; }
+.a-totals { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.a-today { grid-template-columns: repeat(2, minmax(0, 1fr)); }
