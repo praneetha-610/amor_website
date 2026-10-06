@@ -50,7 +50,7 @@
 .marquee { background: var(--yellow); color: var(--ink); overflow: hidden; border-block: 2px solid var(--ink); }
 .marquee__track { display: flex; width: max-content; animation: marquee 36s linear infinite; padding: 14px 0; }
 .marquee__track span { font-size: clamp(1.4rem, 4vw, 2.6rem); font-weight: 900; letter-spacing: -0.02em; padding: 0 0.6em; white-space: nowrap; }
-.marquee__track em { font-style: normal; margin-left: 1.2em; }
+.marquee__track em { font-style: normal; margin-left: 1.2em; color: var(--red); } /* the diamond only */
 @keyframes marquee { to { transform: translateX(-50%); } }
 
 /* sections */
@@ -89,7 +89,10 @@
 .limited__a { background: var(--yellow); }
 .limited__b { background: var(--red); color: #fff; }
 .limited__plus { font-size: 0.5em; letter-spacing: 0; }
-@media (min-width: 900px) { .limited__grid { grid-template-columns: 1.2fr 1fr; gap: 64px; } }
+@media (min-width: 900px) {
+  .limited__grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 48px; }
+  .limited__sum { font-size: clamp(5rem, 12vw, 13rem); } /* scales with the column, never wider than it */
+}
 
 /* about */
 .about__grid { display: grid; gap: 36px; }

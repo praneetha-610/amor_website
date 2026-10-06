@@ -93,3 +93,82 @@
 .bp-other .eyebrow { margin: 0; }
 .bp-other__link { font-size: clamp(1.4rem, 4vw, 2.2rem); font-weight: 900; letter-spacing: -0.03em; text-decoration: none; text-transform: uppercase; }
 .bp-other__link:hover { text-decoration: underline; text-underline-offset: 6px; }
+
+/* ═════════════ SUPER CHEESE — molten cheese drip (load) ═════════════ */
+.cheese-drip {
+  --band: clamp(26px, 5vh, 46px);
+  position: fixed; top: 0; left: 0; right: 0; height: 0; z-index: 150; pointer-events: none;
+  filter: drop-shadow(0 7px 9px rgba(112, 60, 0, 0.38));
+  animation: cheese-out 0.55s ease 1.75s forwards; /* melts away → content fully clear by ~2.3s */
+}
+@keyframes cheese-out { to { opacity: 0; transform: translateY(10px); } }
+.cheese-drip__band { position: absolute; top: 0; left: 0; width: 100%; height: var(--band); z-index: 2; fill: #ffbb00; transform: translateY(-105%); animation: band-in 0.5s var(--ease) forwards; }
+.cheese-drip__band .gloss { stroke: rgba(255, 246, 190, 0.7); stroke-width: 3; stroke-linecap: round; fill: none; }
+@keyframes band-in { to { transform: none; } }
+
+.drip {
+  --bulb: calc(var(--w) * 1.22);
+  position: absolute; z-index: 1; top: calc(var(--band) * 0.55); left: var(--x); width: var(--w); height: var(--len);
+  transform: translate(-50%, -100%);
+  animation: drip-fall var(--dur) cubic-bezier(0.45, 0.05, 0.25, 1) var(--delay) forwards;
+  will-change: transform;
+}
+/* the stretching strand — narrows as it falls */
+.drip::before {
+  content: ""; position: absolute; top: 0; bottom: calc(var(--bulb) * 0.9); left: 50%; width: calc(var(--w) * 1.05);
+  transform: translateX(-50%) scaleX(1.2);
+  background: linear-gradient(90deg, #d98e00, #ffb900 28%, #ffe27a 50%, #ffb900 72%, #d98e00);
+  animation: strand var(--dur) ease-in-out var(--delay) forwards;
+}
+/* the heavy bead at the tip */
+.drip::after {
+  content: ""; position: absolute; bottom: 0; left: 50%; width: var(--bulb); height: calc(var(--bulb) * 1.7); transform: translateX(-50%);
+  border-radius: 46% 46% 50% 50% / 22% 22% 78% 78%; /* elongated teardrop, not a ball */
+  background: radial-gradient(ellipse at 34% 62%, #fff6bf 0 5%, transparent 6%), linear-gradient(90deg, #d98e00, #ffb900 28%, #ffe27a 50%, #ffb900 72%, #d98e00);
+  transform-origin: 50% 20%; animation: bead 1.2s ease-in-out calc(var(--delay) + var(--dur) * 0.55) 1;
+}
+/* slow, heavy fall → slight elastic overshoot → settle */
+@keyframes drip-fall {
+  0% { transform: translate(-50%, -100%); }
+  72% { transform: translate(-50%, -3%); }
+  86% { transform: translate(-50%, 1.6%); }
+  100% { transform: translate(-50%, 0); }
+}
+@keyframes strand { to { transform: translateX(-50%) scaleX(0.82); } }
+@keyframes bead { 0%, 100% { transform: translateX(-50%) scaleY(1); } 45% { transform: translateX(-50%) scaleY(1.12); } }
+
+@media (max-width: 640px) {
+  .drip { height: var(--lenm); }
+  .drip:nth-of-type(n + 7) { display: none; } /* fewer, lighter drips on phones */
+}
+@media (prefers-reduced-motion: reduce) { .cheese-drip { display: none; } }
+
+/* ═════════════ NASHVILLE — ambient flame glow (hero top edge) ═════════════ */
+.theme-nashville .bp-hero > .wrap { position: relative; z-index: 1; }
+.flames {
+  position: absolute; z-index: 0; top: 0; left: 0; right: 0; height: clamp(110px, 24vw, 250px); overflow: hidden; pointer-events: none;
+  mix-blend-mode: screen; opacity: 0.8;
+  -webkit-mask-image: linear-gradient(#000 35%, transparent); mask-image: linear-gradient(#000 35%, transparent);
+}
+.flames__glow { position: absolute; inset: 0 0 auto 0; height: 75%; background: linear-gradient(to bottom, rgba(200, 16, 46, 0.6), rgba(255, 90, 31, 0.2) 60%, transparent); animation: glow 6s ease-in-out infinite alternate; }
+.flames__tongues { position: absolute; inset: 0; filter: blur(9px); } /* blur the group so it softens the clipped shapes */
+.flames i {
+  position: absolute; top: -16%; left: var(--x); width: calc(var(--w) * 0.62); height: var(--h); margin-left: calc(var(--w) * -0.31);
+  /* pointed, licking tongue (tip downward) — softened by the blur so it reads as heat, not a shape */
+  clip-path: polygon(0 0, 100% 0, 92% 30%, 78% 52%, 64% 76%, 50% 100%, 36% 72%, 22% 50%, 8% 28%);
+  background: linear-gradient(to bottom, rgba(255, 190, 60, 0.95) 0, rgba(255, 96, 31, 0.85) 38%, rgba(200, 16, 46, 0.6) 72%, rgba(200, 16, 46, 0.15) 100%);
+  transform-origin: 50% 0; opacity: 0.8; will-change: transform, opacity;
+  animation: lick var(--t) ease-in-out var(--delay) infinite alternate;
+}
+@keyframes lick {
+  0% { transform: scaleY(0.7) skewX(-3deg); opacity: 0.5; }
+  50% { transform: scaleY(1.05) skewX(2deg); opacity: 0.92; }
+  100% { transform: scaleY(0.85) scaleX(0.92) skewX(-2deg); opacity: 0.65; }
+}
+@keyframes glow { from { opacity: 0.65; } to { opacity: 1; } }
+@media (max-width: 640px) {
+  .flames { opacity: 0.6; } /* gentler on phones */
+  .flames i:nth-of-type(n + 6) { display: none; }
+  .flames__tongues { filter: blur(6px); }
+}
+@media (prefers-reduced-motion: reduce) { .flames i, .flames__glow { animation: none; } }

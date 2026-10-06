@@ -16,6 +16,9 @@ create table if not exists public.reservations (
   status           text not null default 'confirmed'
                    check (status in ('confirmed', 'cancelled', 'completed', 'no_show')),
   idempotency_key  text unique,                          -- stops double-submits creating 2 rows
+  consent_accepted    boolean not null default false,     -- agreed to pay even if they don't show up
+  consent_accepted_at timestamptz,
+  unit_price       int,                                  -- ₹ per burger at booking time
   created_at       timestamptz not null default now()
 );
 
@@ -64,7 +67,9 @@ create or replace function public.book_burger(
   p_quantity        int,
   p_daily_limit     int,
   p_max_qty         int,
-  p_idempotency_key text default null
+  p_idempotency_key text,
+  p_consent         boolean,
+  p_unit_price      int
 ) returns jsonb
 language plpgsql security invoker as $$
 declare
@@ -72,22 +77,25 @@ declare
   v_existing public.reservations;
   v_row      public.reservations;
 begin
+  -- Consent is enforced in the database too, not just in the app.
+  if p_consent is distinct from true then
+    return jsonb_build_object('status', 'consent_required');
+  end if;
+
   if p_quantity < 1 or p_quantity > p_max_qty then
     raise exception 'invalid quantity';
   end if;
 
-  -- Serialize all bookings for this burger+date.
+  -- Serialize all bookings for this burger+date (prevents overbooking).
   perform pg_advisory_xact_lock(hashtextextended(p_burger || ':' || p_date::text, 0));
 
-  -- Same form submitted twice (double-click / retry / refresh) → return the original.
   if p_idempotency_key is not null then
     select * into v_existing from public.reservations where idempotency_key = p_idempotency_key;
     if found then
-      return jsonb_build_object('status', 'replayed', 'reservation', to_jsonb(v_existing));
+      return jsonb_build_object('status', 'replayed', 'reservation', to_jsonb(v_existing) - 'idempotency_key');
     end if;
   end if;
 
-  -- Accidental duplicate: same mobile, burger and date already live.
   if exists (
     select 1 from public.reservations
     where mobile_number = p_mobile and burger_type = p_burger
@@ -109,19 +117,20 @@ begin
 
   begin
     insert into public.reservations
-      (reservation_id, customer_name, mobile_number, burger_type, reservation_date, quantity, idempotency_key)
+      (reservation_id, customer_name, mobile_number, burger_type, reservation_date, quantity,
+       idempotency_key, consent_accepted, consent_accepted_at, unit_price)
     values
-      (p_reservation_id, p_name, p_mobile, p_burger, p_date, p_quantity, p_idempotency_key)
+      (p_reservation_id, p_name, p_mobile, p_burger, p_date, p_quantity,
+       p_idempotency_key, true, now(), p_unit_price)
     returning * into v_row;
   exception when unique_violation then
-    -- Astronomically rare reservation_id collision: caller retries with a new ID.
     return jsonb_build_object('status', 'retry');
   end;
 
-  return jsonb_build_object('status', 'ok', 'reservation', to_jsonb(v_row));
+  return jsonb_build_object('status', 'ok', 'reservation', to_jsonb(v_row) - 'idempotency_key');
 end;
 $$;
 
 -- Only the server may call these.
-revoke all on function public.book_burger(text, text, date, text, text, int, int, int, text) from public, anon, authenticated;
+revoke all on function public.book_burger(text, text, date, text, text, int, int, int, text, boolean, int) from public, anon, authenticated;
 revoke all on function public.claimed_counts(date, date) from public, anon, authenticated;

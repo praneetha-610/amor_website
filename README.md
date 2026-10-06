@@ -8,7 +8,9 @@ Next.js 16 (App Router) · TypeScript · Supabase/PostgreSQL · no UI libraries.
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm run qa           # (second terminal) end-to-end booking + race-condition tests
+npm run test:dates   # 3-day window + midnight-IST rollover tests
+DEMO_SEED=false npm run dev   # …then, in a second terminal:
+npm run qa           # end-to-end booking, consent + race-condition tests (one run per server start)
 ```
 
 Without Supabase credentials the site runs in **DEMO MODE**: a yellow banner shows on every page, data lives in
@@ -56,6 +58,15 @@ Search for `TODO` for placeholders to replace (prices, phone, address, ingredien
 - Rate limits are in-memory per instance (`lib/rate-limit.ts`). On serverless, swap in Upstash Redis for hard limits
   (database constraints already prevent overbooking/duplicates regardless).
 
+## Licensed fonts (Sloop Script Pro · Boardley Script Layered)
+
+Not bundled — see [`public/fonts/README.md`](public/fonts/README.md) for the exact file names to drop in. Until then the
+burger pages keep their current bold titles.
+
+## Database migration (existing live database)
+
+Run `supabase/migrations/002_consent_and_price.sql` → deploy → run `003_drop_old_book_burger.sql`. Fresh installs just run `schema.sql`.
+
 ## Structure
 
 ```
@@ -69,5 +80,5 @@ supabase/schema.sql   styles/   scripts/qa-booking.mjs
 ## Assumptions to confirm
 
 - Payment is at the cafe (no online payment) — edit `paymentNote`.
-- Today's reservations close at 21:30 IST (`todayBookingCutoff`); booking window is 14 days.
+- Customers can reserve TODAY + the next 2 days (`bookingDaysAhead: 3`), rolling over at 12:00 AM India time. Today's burgers stop being reservable at 10:00 PM IST (`todayBookingCutoff`, 30 min before the 10:30 PM close); today's card stays visible, marked CLOSED.
 - One live reservation per mobile per burger per date (can still book both burgers).

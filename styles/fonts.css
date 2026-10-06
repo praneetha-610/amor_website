@@ -1,0 +1,42 @@
+/* ═════════════ LICENSED SCRIPT FONTS (files supplied by the owner — see public/fonts/README.md) ═════════════
+   If a file is missing the browser just skips it; ScriptFonts.tsx then leaves the existing sans titles in place. */
+@font-face {
+  font-family: "Sloop Script Pro";
+  src: url("/fonts/SloopScriptPro.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boardley Script Base";
+  src: url("/fonts/BoardleyScript-Base.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boardley Script Shadow";
+  src: url("/fonts/BoardleyScript-Shadow.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Boardley Script Detail";
+  src: url("/fonts/BoardleyScript-Detail.woff2") format("woff2");
+  font-display: swap;
+}
+
+/* Script titles are hidden until their font has actually loaded (class set by ScriptFonts.tsx). */
+.script { display: none; text-transform: none; letter-spacing: 0; font-weight: 400; line-height: 1; }
+
+/* SUPER CHEESE — Sloop Script Pro (single colour, ink on the yellow hero) */
+.script--sloop { font-family: "Sloop Script Pro", cursive; font-size: clamp(4.2rem, 21vw, 11.5rem); line-height: 0.95; padding: 0.04em 0.08em 0.1em 0; margin-left: -0.04em; }
+.has-font-sloop .script--sloop { display: block; }
+.has-font-sloop .theme-cheese .t-plain { display: none; }
+
+/* NASHVILLE — Boardley Script, layered: shadow ▸ base ▸ detail stacked in one grid cell */
+.script--boardley {
+  --layer-shadow: #c8102e; --layer-base: #ffffff; --layer-detail: #ff7a3d;
+  font-size: clamp(3.4rem, 16.5vw, 9.2rem); line-height: 0.98; padding: 0.04em 0.08em 0.1em 0; margin-left: -0.03em;
+}
+.script--boardley .layer { grid-area: 1 / 1; display: none; }
+.has-font-boardley-base .script--boardley { display: inline-grid; }
+.has-font-boardley-base .script--boardley .layer--base { display: block; font-family: "Boardley Script Base", cursive; color: var(--layer-base); }
+.has-font-boardley-shadow .script--boardley .layer--shadow { display: block; font-family: "Boardley Script Shadow", cursive; color: var(--layer-shadow); }
+.has-font-boardley-detail .script--boardley .layer--detail { display: block; font-family: "Boardley Script Detail", cursive; color: var(--layer-detail); }
+.has-font-boardley-base .theme-nashville .t-plain { display: none; }

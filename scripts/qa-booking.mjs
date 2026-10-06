@@ -3,8 +3,10 @@
  *   npm run dev            (in one terminal)
  *   npm run qa             (in another)   BASE_URL=http://localhost:3000 by default
  *
- * Uses dates 3–12 days out (untouched by demo seed data) and a fresh set of
- * mobile numbers each run, so it can be re-run. Needs ≥ 30/30 on that date to start.
+ * The booking window is now TODAY + 2 days, so this uses tomorrow and the day after.
+ * Start the server with an empty demo store so both dates are 30/30:
+ *     DEMO_SEED=false npm run dev
+ * Each server start allows ONE run (the script sells those dates out on purpose).
  */
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 let pass = 0, fail = 0, n = 0;
@@ -22,7 +24,7 @@ async function book(b, headers = {}) {
   const res = await fetch(`${BASE}/api/reservations`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Forwarded-For": ip(), ...headers },
-    body: JSON.stringify({ name: "QA Tester", quantity: 1, idempotencyKey: crypto.randomUUID(), ...b }),
+    body: JSON.stringify({ name: "QA Tester", quantity: 1, consent: true, idempotencyKey: crypto.randomUUID(), ...b }),
   });
   return { status: res.status, body: await res.json() };
 }
@@ -35,9 +37,7 @@ const dayOffset = (k) => {
   return d.toISOString().slice(0, 10);
 };
 
-// Pick an untouched pair of dates (days 3–12) so the script can be re-run; restart the demo server to reset fully.
-const base = 3 + (runId % 5) * 2;
-const DATE = dayOffset(base);
+const DATE = dayOffset(1);
 console.log(`\nAmor Fati booking QA · ${BASE} · date ${DATE}\n`);
 
 let a = await avail(DATE);
@@ -87,7 +87,7 @@ a = await avail(DATE);
 ok(a.burgers.nashville.remaining === 0, "Nashville inventory is 0 — never 31/30");
 
 console.log("\nGuards");
-const DATE2 = dayOffset(base + 1);
+const DATE2 = dayOffset(2);
 const m = mobile();
 r = await book({ burger: "cheese", date: DATE2, mobile: m });
 ok(r.body.ok, "Fresh booking on another date");
@@ -106,8 +106,27 @@ r = await book({ burger: "cheese", date: DATE2, mobile: mobile(), quantity: 3 })
 ok(r.status === 400, "Quantity above the max rejected");
 r = await book({ burger: "cheese", date: "2020-01-01", mobile: mobile() });
 ok(r.status === 409 && r.body.message === "Reservations aren't available for this date.", "Past date → unavailable message");
+r = await book({ burger: "cheese", date: dayOffset(3), mobile: mobile() });
+ok(r.status === 409 && r.body.code === "DATE_UNAVAILABLE", "3 days out (outside today + next 2) refused");
 r = await book({ burger: "cheese", date: dayOffset(60), mobile: mobile() });
-ok(r.status === 409 && r.body.code === "DATE_UNAVAILABLE", "Date beyond booking window refused");
+ok(r.status === 409 && r.body.code === "DATE_UNAVAILABLE", "Date far beyond the window refused");
+{
+  const j = await (await fetch(`${BASE}/api/availability`)).json();
+  ok(j.days.length === 3, "Availability lists exactly 3 dates", `got ${j.days.length}`);
+  ok(j.days[0].date === j.today && j.days[2].date === dayOffset(2), "…today, tomorrow, day after");
+}
+
+console.log("\nConsent (mandatory, enforced server-side)");
+r = await book({ burger: "cheese", date: DATE2, mobile: mobile(), consent: undefined });
+ok(r.status === 400 && r.body.fieldErrors?.consent, "Missing consent → rejected", JSON.stringify(r));
+r = await book({ burger: "cheese", date: DATE2, mobile: mobile(), consent: false });
+ok(r.status === 400 && r.body.fieldErrors?.consent, "consent:false → rejected");
+r = await book({ burger: "cheese", date: DATE2, mobile: mobile(), consent: "true" });
+ok(r.status === 400, 'consent:"true" (string) → rejected');
+r = await book({ burger: "cheese", date: DATE2, mobile: mobile(), consent: 1 });
+ok(r.status === 400, "consent:1 → rejected");
+a = await avail(DATE2);
+ok(a.burgers.cheese.remaining === a.burgers.cheese.limit - 1, "Rejected bookings consumed no inventory", JSON.stringify(a.burgers.cheese));
 r = await book({ burger: "pizza", date: DATE2, mobile: mobile() });
 ok(r.status === 400, "Unknown burger rejected");
 r = await book({ burger: "cheese", date: DATE2, mobile: mobile(), name: "<script>alert(1)</script>" });

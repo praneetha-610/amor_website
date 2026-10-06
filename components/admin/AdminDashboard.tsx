@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BURGER_KEYS, getBurger, type BurgerKey } from "@/config/site";
+import { BURGER_KEYS, formatPrice, getBurger, reservationTotal, type BurgerKey } from "@/config/site";
 import { addDays, shortDate } from "@/lib/dates";
 import type { AdminData } from "@/lib/admin-data";
 import type { Reservation, ReservationStatus } from "@/lib/db/types";
@@ -14,7 +14,7 @@ function weekRange(today: string): [string, string] {
   return [mon, addDays(mon, 6)];
 }
 
-const NAMES: Record<BurgerKey, string> = { cheese: "SUPER CHEESE", nashville: "NASHVILLE" };
+const NAMES = Object.fromEntries(BURGER_KEYS.map((k) => [k, getBurger(k).shortName])) as Record<BurgerKey, string>;
 
 export function AdminDashboard({ today, demo }: { today: string; demo: boolean }) {
   const [preset, setPreset] = useState<Preset>("today");
@@ -173,7 +173,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
           <table className="a-table">
             <thead>
               <tr>
-                <th>Reservation ID</th><th>Burger</th><th>Qty</th><th>Name</th><th>Mobile</th><th>Date</th><th>Status</th><th><span className="sr-only">Actions</span></th>
+                <th>Reservation ID</th><th>Burger</th><th>Qty</th><th>Total</th><th>Name</th><th>Mobile</th><th>Date</th><th>Status</th><th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -182,7 +182,11 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
                   <td data-label="ID" className="a-id">{r.reservation_id}</td>
                   <td data-label="Burger"><span className={`a-burger a-burger--${r.burger_type}`}>{NAMES[r.burger_type]}</span></td>
                   <td data-label="Qty" className="a-qty">{r.quantity}</td>
-                  <td data-label="Name">{r.customer_name}</td>
+                  <td data-label="Total">{formatPrice(reservationTotal(r.burger_type, r.quantity, r.unit_price))}</td>
+                  <td data-label="Name">
+                    {r.customer_name}
+                    {r.consent_accepted && <small className="a-consent" title={r.consent_accepted_at ?? ""}>✓ no-show policy accepted</small>}
+                  </td>
                   <td data-label="Mobile"><a href={`tel:+91${r.mobile_number}`}>{r.mobile_number}</a></td>
                   <td data-label="Date">{shortDate(r.reservation_date)}</td>
                   <td data-label="Status"><span className={`a-status-pill a-status-pill--${r.status}`}>{r.status.replace("_", " ").toUpperCase()}</span></td>

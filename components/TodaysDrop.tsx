@@ -5,12 +5,13 @@ import { BURGER_KEYS, getBurger } from "@/config/site";
 import type { AvailabilityPayload } from "@/lib/inventory";
 import { relativeLabel, shortDate } from "@/lib/dates";
 import { inventoryCopy } from "./inventory-copy";
+import { firstBookableDay } from "./availability-utils";
 import { useAvailability } from "./useAvailability";
 
 /** The landing page's live scarcity panel: real, database-backed numbers. */
 export function TodaysDrop({ initial }: { initial: AvailabilityPayload }) {
   const data = useAvailability(initial);
-  const day = data.days[0];
+  const day = firstBookableDay(data);
 
   const title = !day
     ? "THE DROP"
@@ -33,7 +34,7 @@ export function TodaysDrop({ initial }: { initial: AvailabilityPayload }) {
             <li key={k}>
               <Link href={`${cfg.path}#claim`} className={`today__row today__row--${k}`}>
                 <span className="today__dot" aria-hidden />
-                <span className="today__name">{cfg.shortName === "NASHVILLE" ? "Nashville" : "Super Cheese"}</span>
+                <span className="today__name">{cfg.displayName}</span>
                 <span className="today__num" data-soldout={c?.soldOut || undefined}>
                   {c ? (c.soldOut ? "SOLD OUT" : <><b>{b!.remaining} / {b!.limit}</b> left</>) : "—"}
                 </span>
@@ -49,7 +50,7 @@ export function TodaysDrop({ initial }: { initial: AvailabilityPayload }) {
 /** Small live "17 LEFT TODAY" chip for cards and hero. */
 export function LiveChip({ burger, initial }: { burger: import("@/config/site").BurgerKey; initial: AvailabilityPayload }) {
   const data = useAvailability(initial);
-  const day = data.days[0];
+  const day = firstBookableDay(data);
   if (!day) return null;
   const b = day.burgers[burger];
   const c = inventoryCopy(b.remaining, b.limit);

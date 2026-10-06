@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { BURGER_KEYS, formatPrice, getBurger, siteConfig, type BurgerKey } from "@/config/site";
+import { BURGER_KEYS, formatPrice, getBurger, reservationTotal, siteConfig, type BurgerKey } from "@/config/site";
 import type { AvailabilityPayload, DayAvailability } from "@/lib/inventory";
 import { monthDay, relativeLabel, shortDate } from "@/lib/dates";
 import { MESSAGES } from "@/lib/messages";
 import { isValidMobile, isValidName, normalizeMobile, sanitizeName } from "@/lib/validation";
+import { firstBookableDay } from "../availability-utils";
 import { inventoryCopy, statusText } from "../inventory-copy";
 import { refreshAvailability, useAvailability } from "../useAvailability";
 
-const STATUS_ICON = { available: "●", limited: "◐", sold_out: "✕" } as const;
+const STATUS_ICON = { available: "●", limited: "◐", sold_out: "✕", closed: "✕" } as const;
 
 function newKey(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -44,6 +45,8 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
   const [qty, setQty] = useState(1);
+  const [consent, setConsent] = useState(false);
+  const [consentErr, setConsentErr] = useState("");
   const [fields, setFields] = useState<Partial<Record<"name" | "mobile", string>>>({});
   const [formError, setFormError] = useState<{ message: string; code?: string } | null>(null);
   const [race, setRace] = useState(false);
@@ -64,13 +67,21 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
     if (!date && !race) setDate(firstOpen(data.days, burger, initialDate));
   }, [data.days, date, race, burger, initialDate]);
 
+  // The window rolls over at 12:00 AM India time. If the selected date has dropped out of it
+  // (tab left open overnight) or has closed, move to the first open date instead of booking a stale one.
+  useEffect(() => {
+    if (!date || race) return;
+    const d = data.days.find((x) => x.date === date);
+    if (!d || !d.bookable) setDate(firstOpen(data.days, burger));
+  }, [data.days, date, race, burger]);
+
   // Keep quantity valid as inventory changes.
   useEffect(() => {
     if (qty > maxQty) setQty(maxQty);
   }, [qty, maxQty]);
 
   const isSoldOut = !!avail && avail.remaining <= 0;
-  const noDates = data.days.length === 0;
+  const noDates = !firstBookableDay(data);
 
   function chooseBurger(b: BurgerKey) {
     setBurger(b);
@@ -93,12 +104,13 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
     if (!isValidName(sanitizeName(name))) f.name = MESSAGES.INVALID_NAME;
     if (!isValidMobile(normalizeMobile(mobile))) f.mobile = MESSAGES.INVALID_MOBILE;
     setFields(f);
-    return Object.keys(f).length === 0;
+    if (!consent) setConsentErr(siteConfig.noShowConsent.error);
+    return Object.keys(f).length === 0 && consent;
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (lock.current || phase !== "idle" || !date || isSoldOut) return;
+    if (lock.current || phase !== "idle" || !date || isSoldOut || !consent) return;
     setFormError(null);
     if (!validate()) return;
 
@@ -114,6 +126,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
           name: sanitizeName(name),
           mobile: normalizeMobile(mobile),
           quantity: qty,
+          consent: true, // verified again server-side; stored with a timestamp
           idempotencyKey: idemKey.current,
         }),
       });
@@ -135,6 +148,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
         setFormError({ message: out.message, code });
       } else if (code === "VALIDATION" && out?.fieldErrors) {
         setFields({ name: out.fieldErrors.name, mobile: out.fieldErrors.mobile });
+        if (out.fieldErrors.consent) setConsentErr(out.fieldErrors.consent);
         setFormError({ message: out.message, code });
       } else {
         setFormError({ message: out?.message ?? MESSAGES.SERVER, code });
@@ -163,7 +177,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
           <div className="picks" role="group" aria-label="Choose your burger">
             {BURGER_KEYS.map((k) => {
               const b = getBurger(k);
-              const d0 = data.days[0]?.burgers[k];
+              const d0 = firstBookableDay(data)?.burgers[k];
               const c = d0 ? inventoryCopy(d0.remaining, d0.limit) : null;
               return (
                 <button
@@ -197,14 +211,16 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
             {data.days.map((d) => {
               const mine = d.burgers[burger];
               const selected = d.date === date;
-              const disabled = mine.remaining <= 0;
+              const closed = !d.bookable; // e.g. today, after the cutoff
+              const disabled = closed || mine.remaining <= 0;
+              const status = closed ? "closed" : mine.status;
               return (
                 <button
                   key={d.date}
                   type="button"
                   className="date"
                   data-selected={selected || undefined}
-                  data-status={mine.status}
+                  data-status={status}
                   aria-pressed={selected}
                   disabled={disabled}
                   onClick={() => chooseDate(d.date)}
@@ -217,17 +233,17 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                       const a = d.burgers[k];
                       return (
                         <span key={k} className="date__row" data-mine={k === burger || undefined} data-burger={k}>
-                          <span className="date__lbl">{k === "cheese" ? "SUPER CHEESE" : "NASHVILLE"}</span>
-                          <b>{a.remaining <= 0 ? "SOLD OUT" : `${a.remaining} LEFT`}</b>
+                          <span className="date__lbl">{getBurger(k).shortName}</span>
+                          <b>{closed ? "CLOSED" : a.remaining <= 0 ? "SOLD OUT" : `${a.remaining} LEFT`}</b>
                         </span>
                       );
                     })
                   ) : (
-                    <span className="date__left">{mine.remaining <= 0 ? "SOLD OUT" : `${mine.remaining} LEFT`}</span>
+                    <span className="date__left">{closed ? "CLOSED" : mine.remaining <= 0 ? "SOLD OUT" : `${mine.remaining} LEFT`}</span>
                   )}
 
-                  <span className="tag" data-status={mine.status}>
-                    <span aria-hidden>{STATUS_ICON[mine.status]}</span> {statusText(mine.status)}
+                  <span className="tag" data-status={status}>
+                    <span aria-hidden>{STATUS_ICON[status]}</span> {closed ? "CLOSED FOR TODAY" : statusText(mine.status)}
                   </span>
                 </button>
               );
@@ -272,6 +288,18 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
           ) : (
             <form onSubmit={submit} noValidate className="form">
               <div className="field">
+                <span className="field__label" id={`${uid}-qty-l`}>QUANTITY</span>
+                <div className="qty" role="group" aria-labelledby={`${uid}-qty-l`}>
+                  <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1 || submitting} aria-label="Fewer burgers">−</button>
+                  <output aria-live="polite">{qty}</output>
+                  <button type="button" onClick={() => setQty((q) => Math.min(maxQty, q + 1))} disabled={qty >= maxQty || submitting} aria-label="More burgers">+</button>
+                  <span className="qty__note">
+                    {maxQty === 1 && avail.remaining === 1 ? "LAST ONE" : `MAX ${maxQty} PER CUSTOMER`}
+                  </span>
+                </div>
+              </div>
+
+              <div className="field">
                 <label htmlFor={`${uid}-name`}>FULL NAME</label>
                 <input
                   id={`${uid}-name`}
@@ -312,16 +340,36 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                 {fields.mobile && <p id={`${uid}-mobile-err`} className="field__err">{fields.mobile}</p>}
               </div>
 
-              <div className="field">
-                <span className="field__label" id={`${uid}-qty-l`}>QUANTITY</span>
-                <div className="qty" role="group" aria-labelledby={`${uid}-qty-l`}>
-                  <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1 || submitting} aria-label="Fewer burgers">−</button>
-                  <output aria-live="polite">{qty}</output>
-                  <button type="button" onClick={() => setQty((q) => Math.min(maxQty, q + 1))} disabled={qty >= maxQty || submitting} aria-label="More burgers">+</button>
-                  <span className="qty__note">
-                    {maxQty === 1 && avail.remaining === 1 ? "LAST ONE" : `MAX ${maxQty} PER CUSTOMER`}
-                  </span>
-                </div>
+              {/* REVIEW — what the customer is committing to */}
+              <section className="review" aria-label="Your reservation">
+                <h4 className="review__title">YOUR RESERVATION</h4>
+                <p className="review__burger">{cfg.name}</p>
+                <dl className="review__rows">
+                  <div><dt>Date</dt><dd>{dateTitle}</dd></div>
+                  <div><dt>Quantity</dt><dd>{qty}</dd></div>
+                  <div><dt>Price</dt><dd>{formatPrice(cfg.price)}{qty > 1 ? " each" : ""}</dd></div>
+                  <div className="review__total"><dt>TOTAL</dt><dd>{formatPrice(reservationTotal(burger, qty))}</dd></div>
+                </dl>
+                <p className="review__pay">{siteConfig.paymentNote}</p>
+              </section>
+
+              {/* MANDATORY CONSENT — button stays disabled until ticked; the server re-checks it */}
+              <div className="consent" data-invalid={!!consentErr || undefined}>
+                <label className="consent__box" htmlFor={`${uid}-consent`}>
+                  <input
+                    id={`${uid}-consent`}
+                    type="checkbox"
+                    checked={consent}
+                    onChange={(e) => { setConsent(e.target.checked); if (e.target.checked) setConsentErr(""); }}
+                    aria-required="true"
+                    aria-describedby={`${uid}-consent-note${consentErr ? ` ${uid}-consent-err` : ""}`}
+                    disabled={submitting}
+                  />
+                  <span className="consent__tick" aria-hidden />
+                  <span className="consent__label">{siteConfig.noShowConsent.label}</span>
+                </label>
+                <p id={`${uid}-consent-note`} className="consent__note">{siteConfig.noShowConsent.note}</p>
+                {consentErr && <p id={`${uid}-consent-err`} className="field__err" role="alert">{consentErr}</p>}
               </div>
 
               {formError && (
@@ -336,8 +384,9 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
               <button
                 type="submit"
                 className="btn btn--submit btn--xl btn--block"
-                disabled={submitting}
+                disabled={submitting || !consent}
                 aria-busy={submitting}
+                aria-describedby={!consent ? `${uid}-consent-hint` : undefined}
               >
                 {submitting ? (
                   <><span className="spinner" aria-hidden /> {phase === "done" ? "CLAIMED — OPENING YOUR CONFIRMATION" : "CLAIMING YOURS…"}</>
@@ -346,10 +395,12 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                 )}
               </button>
 
+              {!consent && <p id={`${uid}-consent-hint`} className="form__hint">Tick the box above to reserve your burger.</p>}
+
               <p className="form__promise">
                 <strong>Your burger will be prepared and held specifically for your reservation.</strong>
                 <br />
-                Reservations are valid only for the selected date. {siteConfig.paymentNote}
+                Reservations are valid only for the selected date.
               </p>
               <p className="form__consent">{siteConfig.consentLine}</p>
             </form>

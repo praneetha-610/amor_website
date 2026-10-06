@@ -5,6 +5,7 @@ import type { AvailabilityPayload } from "@/lib/inventory";
 import type { BurgerKey } from "@/config/site";
 import { relativeLabel, shortDate } from "@/lib/dates";
 import { inventoryCopy } from "./inventory-copy";
+import { firstBookableDay } from "./availability-utils";
 import { useAvailability } from "./useAvailability";
 
 /** Presentational meter: big count, animated bar, honest scarcity copy. */
@@ -70,7 +71,7 @@ export function LiveInventory({
   size?: "lg" | "sm";
 }) {
   const data = useAvailability(initial);
-  const day = data.days[0];
+  const day = firstBookableDay(data);
   if (!day) {
     return (
       <div className="meter meter--lg">

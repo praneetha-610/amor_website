@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { BURGER_KEYS, formatPrice, getBurger, siteConfig } from "@/config/site";
+import { BURGER_KEYS, formatPrice, getBurger, siteConfig, siteDescription } from "@/config/site";
 import { getPublicAvailabilitySafe } from "@/lib/inventory";
 import { BurgerArt } from "@/components/BurgerArt";
 import { Reveal } from "@/components/Reveal";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: { absolute: siteConfig.siteTitle },
-  description: siteConfig.siteDescription,
+  description: siteDescription,
 };
 
 export default async function LandingPage() {
@@ -25,6 +25,13 @@ export default async function LandingPage() {
     name: siteConfig.cafeName,
     address: { "@type": "PostalAddress", addressLocality: siteConfig.city, addressCountry: "IN" },
     sameAs: [siteConfig.instagramURL],
+    telephone: siteConfig.phoneTel,
+    openingHoursSpecification: {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      opens: siteConfig.location.opens,
+      closes: siteConfig.location.closes,
+    },
   };
 
   return (
@@ -131,7 +138,7 @@ export default async function LandingPage() {
           <Reveal delay={120}>
             <p className="display-md">{L * 2} BURGERS.<br />EVERY DAY.</p>
             <p className="lede">
-              We make only {L} Super Cheese Burgers and {L} Nashville Fried Chicken Burgers each day. Once
+              We make only {L} {cheese.displayName} Burgers and {L} {nashville.displayName} Fried Chicken Burgers each day. Once
               they&apos;re gone, they&apos;re gone.
             </p>
           </Reveal>
@@ -168,8 +175,9 @@ export default async function LandingPage() {
             <address className="location__card">
               <strong>{siteConfig.location.line1}</strong>
               <span>{siteConfig.location.line2}</span>
-              <span>{siteConfig.location.hours}</span>
+              <span>Open daily · {siteConfig.location.hours}</span>
               <span className="location__links">
+                <a href={`tel:${siteConfig.phoneTel}`}>Call {siteConfig.phoneNumber}</a>
                 <a href={siteConfig.location.mapUrl} target="_blank" rel="noopener noreferrer">Open in Maps ↗</a>
                 <a href={siteConfig.instagramURL} target="_blank" rel="noopener noreferrer">{siteConfig.instagramHandle} ↗</a>
               </span>

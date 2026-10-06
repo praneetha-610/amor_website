@@ -20,6 +20,11 @@ export interface Reservation {
   quantity: number;
   status: ReservationStatus;
   created_at: string; // ISO timestamp
+  /** Price per burger (₹) at the moment of booking. null on bookings made before price snapshots existed. */
+  unit_price: number | null;
+  /** Customer ticked the no-show / pay-even-if-absent consent. */
+  consent_accepted: boolean;
+  consent_accepted_at: string | null;
 }
 
 export interface ClaimedRow {
@@ -36,6 +41,9 @@ export interface CreateInput {
   mobile: string;
   quantity: number;
   idempotencyKey: string;
+  /** Must be true — the store refuses otherwise (defence in depth). */
+  consent: boolean;
+  unitPrice: number;
   dailyLimit: number;
   maxQuantity: number;
 }
@@ -45,6 +53,7 @@ export type CreateResult =
   | { status: "sold_out" }
   | { status: "not_enough"; remaining: number }
   | { status: "duplicate" }
+  | { status: "consent_required" }
   | { status: "retry" }; // reservation_id collision — caller regenerates the ID
 
 export interface ListFilter {

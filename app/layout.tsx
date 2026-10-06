@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Instrument_Serif } from "next/font/google";
-import { siteConfig } from "@/config/site";
+import { siteConfig, siteDescription } from "@/config/site";
 import "@/styles/base.css";
+import "@/styles/fonts.css";
 import "@/styles/landing.css";
 import "@/styles/burger.css";
 import "@/styles/booking.css";
@@ -26,17 +27,17 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: siteConfig.siteTitle, template: `%s | ${siteConfig.brandName}` },
-  description: siteConfig.siteDescription,
+  description: siteDescription,
   applicationName: siteConfig.cafeName,
   openGraph: {
     type: "website",
     siteName: siteConfig.cafeName,
     title: siteConfig.siteTitle,
-    description: siteConfig.siteDescription,
+    description: siteDescription,
     locale: "en_IN",
     url: "/",
   },
-  twitter: { card: "summary_large_image", title: siteConfig.siteTitle, description: siteConfig.siteDescription },
+  twitter: { card: "summary_large_image", title: siteConfig.siteTitle, description: siteDescription },
   alternates: { canonical: "/" },
 };
 

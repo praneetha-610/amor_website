@@ -63,7 +63,14 @@ export function Nav() {
           ))}
           <Link href="/reserve" className="btn btn--accent btn--lg">CLAIM YOUR BURGER</Link>
         </nav>
-        <p>{siteConfig.location.line2}</p>
+        <div className="nav__sheet-info">
+          <p>{siteConfig.location.line2} · {siteConfig.location.hours}</p>
+          <p>
+            <a href={`tel:${siteConfig.phoneTel}`}>{siteConfig.phoneNumber}</a>
+            {" · "}
+            <a href={siteConfig.instagramURL} target="_blank" rel="noopener noreferrer">{siteConfig.instagramHandle}</a>
+          </p>
+        </div>
       </div>
     </header>
   );

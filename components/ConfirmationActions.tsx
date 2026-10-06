@@ -12,6 +12,7 @@ interface Props {
   quantity: number;
   whatsappNumber: string;
   location: string;
+  hours: string;
 }
 
 function esc(s: string) {
@@ -41,7 +42,7 @@ export function ConfirmationActions(p: Props) {
       `DTSTART;VALUE=DATE:${d}`,
       `DTEND;VALUE=DATE:${next}`,
       `SUMMARY:${esc(`Amor Fati — ${p.burgerLabel} Burger ×${p.quantity}`)}`,
-      `DESCRIPTION:${esc(`Reservation ${p.reservationId}. Show your confirmation at Amor Fati.`)}`,
+      `DESCRIPTION:${esc(`Reservation ${p.reservationId}. Show your confirmation at Amor Fati. Open ${p.hours}.`)}`,
       `LOCATION:${esc(p.location)}`,
       "END:VEVENT", "END:VCALENDAR",
     ].join("\r\n");

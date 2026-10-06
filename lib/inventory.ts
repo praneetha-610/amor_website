@@ -57,10 +57,13 @@ export async function getAvailability(from?: string, to?: string): Promise<Avail
   return { today: todayIST(now), days };
 }
 
-/** Public payload for the next N bookable days (what the pages render). */
+/**
+ * Public payload: every date in the rolling window (today + the next 2, in India time).
+ * A date that can't be booked right now (e.g. today after the cutoff) is still listed
+ * with bookable:false so customers always see the full 3-day window.
+ */
 export async function getPublicAvailability(): Promise<AvailabilityPayload> {
-  const payload = await getAvailability();
-  return { ...payload, days: payload.days.filter((d) => d.bookable) };
+  return getAvailability();
 }
 
 

@@ -39,9 +39,11 @@ export interface BookingInput {
   mobile: string; // normalized 10 digits
   quantity: number;
   idempotencyKey: string;
+  /** Always true on a validated booking. */
+  consent: true;
 }
 
-export type FieldErrors = Partial<Record<"burger" | "date" | "name" | "mobile" | "quantity", string>>;
+export type FieldErrors = Partial<Record<"burger" | "date" | "name" | "mobile" | "quantity" | "consent", string>>;
 
 export function validateBooking(raw: unknown): { ok: true; value: BookingInput } | { ok: false; errors: FieldErrors } {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -64,12 +66,15 @@ export function validateBooking(raw: unknown): { ok: true; value: BookingInput }
     errors.quantity = MESSAGES.INVALID_QUANTITY(siteConfig.maximumQuantityPerCustomer);
   }
 
+  // Must be the boolean `true` — "true", 1, or a missing field are all rejected.
+  if (r.consent !== true) errors.consent = siteConfig.noShowConsent.error;
+
   const key = typeof r.idempotencyKey === "string" ? r.idempotencyKey : "";
   const idempotencyKey = /^[A-Za-z0-9-]{16,64}$/.test(key) ? key : "";
 
   if (Object.keys(errors).length) return { ok: false, errors };
   return {
     ok: true,
-    value: { burger: burger as BurgerKey, date, name, mobile, quantity, idempotencyKey },
+    value: { burger: burger as BurgerKey, date, name, mobile, quantity, idempotencyKey, consent: true },
   };
 }

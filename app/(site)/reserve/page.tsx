@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { isBurgerKey, siteConfig } from "@/config/site";
+import { isBurgerKey, siteConfig, siteDescription } from "@/config/site";
 import { getPublicAvailabilitySafe } from "@/lib/inventory";
 import { BookingFlow } from "@/components/booking/BookingFlow";
 
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Claim your burger",
-  description: siteConfig.siteDescription,
+  description: siteDescription,
   alternates: { canonical: "/reserve" },
 };
 

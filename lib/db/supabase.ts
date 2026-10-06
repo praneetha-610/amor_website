@@ -32,7 +32,7 @@ function db(): SupabaseClient {
 }
 
 const COLUMNS =
-  "id, reservation_id, customer_name, mobile_number, burger_type, reservation_date, quantity, status, created_at";
+  "id, reservation_id, customer_name, mobile_number, burger_type, reservation_date, quantity, status, created_at, unit_price, consent_accepted, consent_accepted_at";
 
 export const supabaseStore: Store = {
   kind: "supabase",
@@ -65,6 +65,8 @@ export const supabaseStore: Store = {
       p_daily_limit: i.dailyLimit,
       p_max_qty: i.maxQuantity,
       p_idempotency_key: i.idempotencyKey || null,
+      p_consent: i.consent,
+      p_unit_price: i.unitPrice,
     });
     if (error) throw error;
     switch (data?.status) {
@@ -78,6 +80,8 @@ export const supabaseStore: Store = {
         return { status: "not_enough", remaining: Number(data.remaining) };
       case "duplicate":
         return { status: "duplicate" };
+      case "consent_required":
+        return { status: "consent_required" };
       case "retry":
         return { status: "retry" };
       default:

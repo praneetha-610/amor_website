@@ -1,5 +1,5 @@
 import "server-only";
-import { getBurger, siteConfig } from "@/config/site";
+import { getBurger, reservationTotal, siteConfig } from "@/config/site";
 import { isBookableDate } from "@/lib/dates";
 import { getStore } from "@/lib/db";
 import type { Reservation } from "@/lib/db/types";
@@ -21,6 +21,8 @@ export interface PublicReservation {
   quantity: number;
   status: Reservation["status"];
   createdAt: string;
+  unitPrice: number;
+  total: number;
 }
 
 export function toPublic(r: Reservation): PublicReservation {
@@ -32,6 +34,8 @@ export function toPublic(r: Reservation): PublicReservation {
     quantity: r.quantity,
     status: r.status,
     createdAt: r.created_at,
+    unitPrice: r.unit_price ?? getBurger(r.burger_type).price,
+    total: reservationTotal(r.burger_type, r.quantity, r.unit_price),
   };
 }
 
@@ -57,6 +61,8 @@ export async function bookBurger(raw: unknown): Promise<BookingOutcome> {
       mobile: input.mobile,
       quantity: input.quantity,
       idempotencyKey: input.idempotencyKey,
+      consent: input.consent,
+      unitPrice: getBurger(input.burger).price, // server-side price — the client never sends one
       dailyLimit: getBurger(input.burger).dailyLimit,
       maxQuantity: siteConfig.maximumQuantityPerCustomer,
     });
@@ -69,6 +75,8 @@ export async function bookBurger(raw: unknown): Promise<BookingOutcome> {
         return { ok: false, code: "NOT_ENOUGH", message: MESSAGES.NOT_ENOUGH(res.remaining), remaining: res.remaining };
       case "duplicate":
         return { ok: false, code: "DUPLICATE", message: MESSAGES.DUPLICATE };
+      case "consent_required":
+        return { ok: false, code: "VALIDATION", message: siteConfig.noShowConsent.error, fieldErrors: { consent: siteConfig.noShowConsent.error } };
       case "retry":
         continue; // reservation_id collision → fresh ID
     }

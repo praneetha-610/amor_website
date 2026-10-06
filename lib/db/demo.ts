@@ -13,7 +13,7 @@
  * (The Supabase store achieves the same with a Postgres advisory lock.)
  */
 import { randomUUID } from "node:crypto";
-import { BURGER_KEYS, type BurgerKey } from "@/config/site";
+import { BURGER_KEYS, getBurger, type BurgerKey } from "@/config/site";
 import { addDays, todayIST } from "@/lib/dates";
 import {
   HOLDS_INVENTORY,
@@ -56,6 +56,9 @@ function seed(rows: Reservation[]) {
         quantity: 1,
         status: "confirmed",
         created_at: new Date().toISOString(),
+        unit_price: getBurger(burger).price,
+        consent_accepted: true,
+        consent_accepted_at: new Date().toISOString(),
       });
     }
   }
@@ -88,6 +91,8 @@ export const demoStore: Store = {
   async createReservation(i: CreateInput): Promise<CreateResult> {
     // ── CRITICAL SECTION: no `await` below this line until return ──
     const s = state();
+
+    if (i.consent !== true) return { status: "consent_required" };
 
     if (i.idempotencyKey) {
       const existing = s.idem.get(i.idempotencyKey);
@@ -127,6 +132,9 @@ export const demoStore: Store = {
       quantity: i.quantity,
       status: "confirmed",
       created_at: new Date().toISOString(),
+      unit_price: i.unitPrice,
+      consent_accepted: true,
+      consent_accepted_at: new Date().toISOString(),
     };
     s.rows.push(reservation);
     if (i.idempotencyKey) s.idem.set(i.idempotencyKey, i.reservationId);

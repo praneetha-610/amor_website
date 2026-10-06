@@ -4,7 +4,11 @@ import { getPublicAvailabilitySafe } from "@/lib/inventory";
 import { BurgerArt } from "./BurgerArt";
 import { BookingFlow } from "./booking/BookingFlow";
 import { LiveInventory } from "./InventoryMeter";
+import { CheeseDrip } from "./CheeseDrip";
+import { Flames } from "./Flames";
 import { Reveal } from "./Reveal";
+import { ScriptFonts } from "./ScriptFonts";
+import { ScriptTitle } from "./ScriptTitle";
 
 /**
  * One structure, two identities: the theme-* class on the root swaps the whole
@@ -18,12 +22,18 @@ export async function BurgerPage({ burger }: { burger: BurgerKey }) {
 
   return (
     <div className={`bp theme-${burger}`}>
+      <ScriptFonts burger={burger} />
+      {burger === "cheese" && <CheeseDrip />}
       {/* HERO */}
       <section className="bp-hero" aria-labelledby="bp-title">
+        {burger === "nashville" && <Flames />}
         <div className="wrap bp-hero__grid">
           <div className="bp-hero__copy">
             <p className="bp-kicker">BURGER {index} · {cfg.tagline}</p>
-            <h1 id="bp-title" className="bp-title">{cfg.heroTitle}</h1>
+            <h1 id="bp-title" className="bp-title">
+              <span className="t-plain">{cfg.heroTitle}</span>
+              <ScriptTitle burger={burger} text={cfg.scriptTitle} />
+            </h1>
             <p className="bp-headline">
               {cfg.heroHeadline.map((l, i) => (
                 <span key={i}>{l}</span>
