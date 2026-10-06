@@ -10,7 +10,7 @@ import { MESSAGES } from "@/lib/messages";
 import { isValidMobile, isValidName, normalizeMobile, sanitizeName } from "@/lib/validation";
 import { firstBookableDay } from "../availability-utils";
 import { inventoryCopy, statusText } from "../inventory-copy";
-import { refreshAvailability, useAvailability } from "../useAvailability";
+import { applyLocalBooking, refreshAvailability, useAvailability } from "../useAvailability";
 
 const STATUS_ICON = { available: "●", limited: "◐", sold_out: "✕", closed: "✕" } as const;
 
@@ -55,6 +55,8 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
   const idemKey = useRef(newKey());
   const lock = useRef(false);
   const datesRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLElement>(null);
+  const [nudge, setNudge] = useState<{ to: "form" | "dates"; n: number } | null>(null);
 
   const cfg = getBurger(burger);
   const showBoth = !fixedBurger;
@@ -80,10 +82,21 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
     if (qty > maxQty) setQty(maxQty);
   }, [qty, maxQty]);
 
+  // On phones the next step sits below the fold — bring it into view after each tap.
+  useEffect(() => {
+    if (!nudge) return;
+    const t = setTimeout(() => {
+      const el = nudge.to === "form" ? formRef.current : datesRef.current;
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 140);
+    return () => clearTimeout(t);
+  }, [nudge]);
+
   const isSoldOut = !!avail && avail.remaining <= 0;
   const noDates = !firstBookableDay(data);
 
   function chooseBurger(b: BurgerKey) {
+    setNudge((x) => ({ to: "dates", n: (x?.n ?? 0) + 1 }));
     setBurger(b);
     setRace(false);
     setFormError(null);
@@ -93,6 +106,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
   }
 
   function chooseDate(d: string) {
+    setNudge((x) => ({ to: "form", n: (x?.n ?? 0) + 1 })); // even re-tapping the pre-selected date moves on
     setDate(d);
     setRace(false);
     setFormError(null);
@@ -134,6 +148,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
 
       if (res.ok && out?.ok) {
         setPhase("done");
+        applyLocalBooking(burger, date, qty); // the count drops right away
         router.push(out.url);
         return; // keep the lock: a second tap must never create a second booking
       }
@@ -177,8 +192,11 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
           <div className="picks" role="group" aria-label="Choose your burger">
             {BURGER_KEYS.map((k) => {
               const b = getBurger(k);
-              const d0 = firstBookableDay(data)?.burgers[k];
+              // nearest date that still has this burger — "SOLD OUT" only when every open date is gone
+              const dayK = data.days.find((x) => x.bookable && x.burgers[k].remaining > 0);
+              const d0 = dayK?.burgers[k];
               const c = d0 ? inventoryCopy(d0.remaining, d0.limit) : null;
+              const when = dayK ? relativeLabel(dayK.date, data.today) : "";
               return (
                 <button
                   key={k}
@@ -189,7 +207,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                 >
                   <span className="pick__name">{b.name}</span>
                   <span className="pick__meta">
-                    {formatPrice(b.price)}{c ? ` · ${c.soldOut ? "SOLD OUT" : c.headline}` : ""}
+                    {formatPrice(b.price)} · {c ? `${c.headline} ${when}` : data.days.length ? "SOLD OUT" : ""}
                   </span>
                 </button>
               );
@@ -229,7 +247,8 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                   <span className="date__d">{shortDate(d.date)}</span>
 
                   {showBoth ? (
-                    BURGER_KEYS.map((k) => {
+                    <span className="date__rows">
+                    {BURGER_KEYS.map((k) => {
                       const a = d.burgers[k];
                       return (
                         <span key={k} className="date__row" data-mine={k === burger || undefined} data-burger={k}>
@@ -237,7 +256,8 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                           <b>{closed ? "CLOSED" : a.remaining <= 0 ? "SOLD OUT" : `${a.remaining} LEFT`}</b>
                         </span>
                       );
-                    })
+                    })}
+                    </span>
                   ) : (
                     <span className="date__left">{closed ? "CLOSED" : mine.remaining <= 0 ? "SOLD OUT" : `${mine.remaining} LEFT`}</span>
                   )}
@@ -268,7 +288,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
 
       {/* STEP — details */}
       {date && avail && !race && (
-        <section className="step step--form" aria-labelledby={`${uid}-s3`} key={`${burger}-${date}`}>
+        <section className="step step--form" aria-labelledby={`${uid}-s3`} key={`${burger}-${date}`} ref={formRef}>
           <h3 id={`${uid}-s3`} className="step__title"><span>{showBoth ? 3 : 2}</span> YOUR DETAILS</h3>
 
           <div className="picked" aria-live="polite">

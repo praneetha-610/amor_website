@@ -3,7 +3,6 @@
 --  Run this ONCE in Supabase → SQL Editor. Safe to re-run.
 -- ════════════════════════════════════════════════════════════════
 
-create extension if not exists pgcrypto;
 
 create table if not exists public.reservations (
   id               uuid primary key default gen_random_uuid(),

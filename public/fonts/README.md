@@ -1,31 +1,25 @@
-# Licensed script fonts — drop your files here
+# Licensed script fonts — put your files here
 
-These two fonts are commercial. They are **not** included in this repo and were not
-downloaded from anywhere. Buy/licence them (with a **web / webfont licence**), then copy the
-files into this folder using EXACTLY these names. Nothing else needs to change —
-the site detects the files and switches the burger titles automatically.
+Both fonts are **paid**. They are not in this repo, and nothing was downloaded from anywhere.
+Until you add them, the site shows free stand-in scripts (Yellowtail / Lobster) so it still looks right.
+The moment the files exist, the site uses them — no code change needed.
 
-## Super Cheese — Sloop Script Pro
-| File | Required |
-|---|---|
-| `SloopScriptPro.woff2` | yes — web format only (convert from the .otf/.ttf you bought — e.g. with fonttools or Font Squirrel's generator, *if your licence allows web conversion*) |
+## Where to buy (choose a licence that allows web / @font-face use)
+- **Sloop Script Pro** (Lipton Letter Design) — https://liptonletterdesign.com/fonts/sloop-script/ or MyFonts
+  (web licence = single domain; Regular / Medium / Bold each ≈ $29).
+- **Boardley Script – Layered** (Craft Supply) — https://craftsupply.co/product/boardley-script-layered-font/
+  (pick a *Website* licence: "@font-face", 100,000 monthly views, or Extended for unlimited).
+  It includes **two fonts: Boardley Script + Boardley Extrude** — those are the "layers".
 
-## Nashville — Boardley Script (Layered)
-A "layered" font ships as several files that stack in different colours. Rename the ones you
-receive to these names (only `Base` is required; the other layers are optional):
+## File names (EXACT)
+Copy the files you receive here and rename them. `.otf` works as-is (no conversion needed);
+`.woff2` is smaller if your licence allows converting.
 
-| File | Layer | Default colour (edit in `styles/fonts.css`) |
+| Burger | Font | Save as |
 |---|---|---|
-| `BoardleyScript-Base.woff2` | main letterforms — **required** | white |
-| `BoardleyScript-Shadow.woff2` | drop-shadow / extrusion layer | deep red |
-| `BoardleyScript-Detail.woff2` | highlight / inline detail layer | hot orange |
+| Super Cheese | Sloop Script Pro (Regular, Medium or Bold — your choice) | `SloopScriptPro.otf`  (or `.woff2`) |
+| Nashville | Boardley Script (main letters) | `BoardleyScript.otf`  (or `.woff2`) |
+| Nashville | Boardley Extrude (shadow layer) | `BoardleyExtrude.otf` (or `.woff2`) |
 
-If your purchase has different layers, map them onto Shadow/Detail — whichever looks best.
-
-## Until the files are here
-The burger pages keep the current bold sans titles. Nothing breaks and no generic script
-font is substituted.
-
-## Where it's used
-`styles/fonts.css` (declarations + colours) · `components/ScriptTitle.tsx` · `components/ScriptFonts.tsx`
-Text shown in script is `scriptTitle` in `config/site.ts`.
+Then commit + push; Vercel redeploys and the burger page titles switch automatically.
+Colours of the layers are editable at the top of the Nashville block in `styles/fonts.css`.

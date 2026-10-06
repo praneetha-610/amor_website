@@ -10,6 +10,17 @@ export const hasSupabaseCredentials = Boolean(
 export const isDemoMode = !hasSupabaseCredentials;
 
 /**
+ *  "live"          → real Supabase database
+ *  "demo"          → in-memory demo (local dev, or DEMO_MODE=true)
+ *  "not-connected" → production with no database keys: reservations are OFF until they're set
+ */
+export const dbStatus: "live" | "demo" | "not-connected" = hasSupabaseCredentials
+  ? "live"
+  : process.env.NODE_ENV === "production" && process.env.DEMO_MODE !== "true"
+    ? "not-connected"
+    : "demo";
+
+/**
  * Picks the data store.
  *  • Credentials present  → Supabase (real).
  *  • No credentials       → DEMO MODE (in-memory, loud banner).

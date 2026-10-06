@@ -4,7 +4,7 @@ import { getPublicAvailabilitySafe } from "@/lib/inventory";
 import { BurgerArt } from "./BurgerArt";
 import { BookingFlow } from "./booking/BookingFlow";
 import { LiveInventory } from "./InventoryMeter";
-import { CheeseDrip } from "./CheeseDrip";
+import { CheeseAmbient } from "./CheeseAmbient";
 import { Flames } from "./Flames";
 import { Reveal } from "./Reveal";
 import { ScriptFonts } from "./ScriptFonts";
@@ -23,10 +23,9 @@ export async function BurgerPage({ burger }: { burger: BurgerKey }) {
   return (
     <div className={`bp theme-${burger}`}>
       <ScriptFonts burger={burger} />
-      {burger === "cheese" && <CheeseDrip />}
       {/* HERO */}
       <section className="bp-hero" aria-labelledby="bp-title">
-        {burger === "nashville" && <Flames />}
+        {burger === "nashville" ? <Flames /> : <CheeseAmbient />}
         <div className="wrap bp-hero__grid">
           <div className="bp-hero__copy">
             <p className="bp-kicker">BURGER {index} · {cfg.tagline}</p>

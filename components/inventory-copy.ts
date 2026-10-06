@@ -27,3 +27,10 @@ export function inventoryCopy(remaining: number, limit: number) {
 export function statusText(s: "available" | "limited" | "sold_out") {
   return s === "sold_out" ? "SOLD OUT" : s === "limited" ? "LIMITED" : "AVAILABLE";
 }
+
+/** Client-safe twin of lib/inventory.statusFor (that module is server-only). */
+export function statusFor(remaining: number): "available" | "limited" | "sold_out" {
+  if (remaining <= 0) return "sold_out";
+  if (remaining < siteConfig.limitedThreshold) return "limited";
+  return "available";
+}

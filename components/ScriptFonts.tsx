@@ -1,34 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
-
 import type { BurgerKey } from "@/config/site";
 
-const FONTS: Record<BurgerKey, Record<string, string>> = {
-  cheese: { "has-font-sloop": '"Sloop Script Pro"' },
-  nashville: {
-    "has-font-boardley-base": '"Boardley Script Base"',
-    "has-font-boardley-shadow": '"Boardley Script Shadow"',
-    "has-font-boardley-detail": '"Boardley Script Detail"',
-  },
-};
-
 /**
- * Detects which licensed font files were actually supplied (public/fonts/) and flags <html>
- * so the CSS can switch the burger titles to script. A missing file simply never sets its flag —
- * the existing sans title stays, and no generic script font is ever substituted.
+ * Only job: detect whether the licensed Boardley *Extrude* file exists, because that layer
+ * has no free stand-in (drawing it with a different font would look wrong). Everything else
+ * falls back to the stand-in script fonts through plain CSS font stacks.
  */
 export function ScriptFonts({ burger }: { burger: BurgerKey }) {
   useEffect(() => {
-    if (!("fonts" in document)) return;
-    const root = document.documentElement;
+    if (burger !== "nashville" || !("fonts" in document)) return;
     let cancelled = false;
-    for (const [cls, family] of Object.entries(FONTS[burger])) {
-      document.fonts
-        .load(`64px ${family}`, "Aa")
-        .then((faces) => { if (!cancelled && faces.length) root.classList.add(cls); })
-        .catch(() => {});
-    }
+    document.fonts
+      .load('64px "Boardley Extrude"', "Aa")
+      .then((faces) => { if (!cancelled && faces.length) document.documentElement.classList.add("has-font-boardley-extrude"); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [burger]);
   return null;

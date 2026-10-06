@@ -8,6 +8,7 @@ export function AdminLogin({ demoHint, configured }: { demoHint: boolean; config
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [show, setShow] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +44,10 @@ export function AdminLogin({ demoHint, configured }: { demoHint: boolean; config
           <>
             {demoHint && <p className="admin-note">Demo mode: the password is <code>demo</code> (set ADMIN_PASSWORD to change it).</p>}
             <label htmlFor="pw">PASSWORD</label>
-            <input id="pw" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} required autoFocus />
+            <div className="admin-login__pw">
+              <input id="pw" type={show ? "text" : "password"} autoComplete="current-password" autoCapitalize="none" autoCorrect="off" value={pw} onChange={(e) => setPw(e.target.value)} required autoFocus />
+              <button type="button" onClick={() => setShow((v) => !v)} aria-pressed={show}>{show ? "HIDE" : "SHOW"}</button>
+            </div>
             {err && <p className="form__error" role="alert">{err}</p>}
             <button className="btn btn--ink btn--xl btn--block" disabled={busy}>{busy ? "SIGNING IN…" : "SIGN IN"}</button>
           </>

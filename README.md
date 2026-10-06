@@ -1,5 +1,7 @@
 # AMOR FATI — Limited Burger Drop
 
+> **New here? Read [GUIDE.md](GUIDE.md)** — how the site works, Supabase + Vercel setup step by step, and the admin/staff manual.
+
 Pre-booking site for two limited burgers (30 each, every day) at Amor Fati Cafe, Tirupati.
 Next.js 16 (App Router) · TypeScript · Supabase/PostgreSQL · no UI libraries.
 

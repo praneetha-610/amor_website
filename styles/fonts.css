@@ -1,42 +1,25 @@
-/* ═════════════ LICENSED SCRIPT FONTS (files supplied by the owner — see public/fonts/README.md) ═════════════
-   If a file is missing the browser just skips it; ScriptFonts.tsx then leaves the existing sans titles in place. */
-@font-face {
-  font-family: "Sloop Script Pro";
-  src: url("/fonts/SloopScriptPro.woff2") format("woff2");
-  font-display: swap;
-}
-@font-face {
-  font-family: "Boardley Script Base";
-  src: url("/fonts/BoardleyScript-Base.woff2") format("woff2");
-  font-display: swap;
-}
-@font-face {
-  font-family: "Boardley Script Shadow";
-  src: url("/fonts/BoardleyScript-Shadow.woff2") format("woff2");
-  font-display: swap;
-}
-@font-face {
-  font-family: "Boardley Script Detail";
-  src: url("/fonts/BoardleyScript-Detail.woff2") format("woff2");
-  font-display: swap;
-}
+/* ═════════════ SCRIPT FONTS ═════════════
+   Licensed fonts (supplied by the owner — see public/fonts/README.md):
+     Super Cheese → Sloop Script Pro            (SloopScriptPro.woff2 / .otf)
+     Nashville    → Boardley Script + Extrude   (BoardleyScript.woff2 / .otf, BoardleyExtrude.woff2 / .otf)
+   If a file isn't there the browser skips it and the FREE stand-in (Yellowtail / Lobster, set in
+   app/layout.tsx) is used instead. So the page always shows a script, and switches to the licensed
+   font automatically once the files exist. */
+@font-face { font-family: "Sloop Script Pro"; src: url("/fonts/SloopScriptPro.woff2") format("woff2"), url("/fonts/SloopScriptPro.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "Boardley Script"; src: url("/fonts/BoardleyScript.woff2") format("woff2"), url("/fonts/BoardleyScript.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "Boardley Extrude"; src: url("/fonts/BoardleyExtrude.woff2") format("woff2"), url("/fonts/BoardleyExtrude.otf") format("opentype"); font-display: swap; }
 
-/* Script titles are hidden until their font has actually loaded (class set by ScriptFonts.tsx). */
-.script { display: none; text-transform: none; letter-spacing: 0; font-weight: 400; line-height: 1; }
+.script { display: block; text-transform: none; letter-spacing: 0; font-weight: 400; line-height: 1; }
+/* the real <h1> text stays for screen readers / SEO; the script version is what people see */
+.t-plain { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* SUPER CHEESE — Sloop Script Pro (single colour, ink on the yellow hero) */
-.script--sloop { font-family: "Sloop Script Pro", cursive; font-size: clamp(4.2rem, 21vw, 11.5rem); line-height: 0.95; padding: 0.04em 0.08em 0.1em 0; margin-left: -0.04em; }
-.has-font-sloop .script--sloop { display: block; }
-.has-font-sloop .theme-cheese .t-plain { display: none; }
+/* SUPER CHEESE — Sloop Script Pro (stand-in: Yellowtail) */
+.script--sloop { font-family: "Sloop Script Pro", var(--font-standin-cheese), cursive; font-size: clamp(4rem, 20vw, 10.5rem); line-height: 1; padding: 0.04em 0.08em 0.12em 0; margin-left: -0.03em; }
 
-/* NASHVILLE — Boardley Script, layered: shadow ▸ base ▸ detail stacked in one grid cell */
-.script--boardley {
-  --layer-shadow: #c8102e; --layer-base: #ffffff; --layer-detail: #ff7a3d;
-  font-size: clamp(3.4rem, 16.5vw, 9.2rem); line-height: 0.98; padding: 0.04em 0.08em 0.1em 0; margin-left: -0.03em;
-}
-.script--boardley .layer { grid-area: 1 / 1; display: none; }
-.has-font-boardley-base .script--boardley { display: inline-grid; }
-.has-font-boardley-base .script--boardley .layer--base { display: block; font-family: "Boardley Script Base", cursive; color: var(--layer-base); }
-.has-font-boardley-shadow .script--boardley .layer--shadow { display: block; font-family: "Boardley Script Shadow", cursive; color: var(--layer-shadow); }
-.has-font-boardley-detail .script--boardley .layer--detail { display: block; font-family: "Boardley Script Detail", cursive; color: var(--layer-detail); }
-.has-font-boardley-base .theme-nashville .t-plain { display: none; }
+/* NASHVILLE — Boardley Script, layered: Extrude (shadow) under Script (stand-in: Lobster) */
+.script--boardley { --layer-extrude: #c8102e; --layer-base: #ffffff; display: inline-grid; font-size: clamp(3.2rem, 15.5vw, 8.6rem); line-height: 1.02; padding: 0.04em 0.08em 0.12em 0; margin-left: -0.03em; }
+.script--boardley .layer { grid-area: 1 / 1; }
+.script--boardley .layer--base { font-family: "Boardley Script", var(--font-standin-nashville), cursive; color: var(--layer-base); position: relative; }
+.script--boardley .layer--extrude { display: none; font-family: "Boardley Extrude", cursive; color: var(--layer-extrude); }
+/* the Extrude layer only renders when its real font file is present (ScriptFonts.tsx sets this flag) */
+.has-font-boardley-extrude .script--boardley .layer--extrude { display: block; }

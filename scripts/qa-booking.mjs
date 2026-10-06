@@ -134,6 +134,43 @@ ok(r.status === 400, "Script-tag name rejected");
 r = await book({ burger: "cheese", date: DATE2, mobile: `+91 ${mobile().slice(0, 5)} ${mobile().slice(5)}`.replace(/ /g, "") });
 ok(r.status !== 500, "+91-prefixed numbers don't crash");
 
+console.log("\nAdmin (password: ADMIN_PASSWORD, or \"demo\" in demo mode)");
+{
+  const pw = process.env.ADMIN_PASSWORD || "demo";
+  const bad = await fetch(`${BASE}/api/admin/login`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": ip() }, body: JSON.stringify({ password: "definitely-wrong" }) });
+  ok(bad.status === 401, "Wrong admin password → 401");
+  const good = await fetch(`${BASE}/api/admin/login`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": ip() }, body: JSON.stringify({ password: pw }) });
+  const cookie = (good.headers.get("set-cookie") || "").split(";")[0];
+  ok(good.status === 200 && cookie.startsWith("af_admin="), "Correct password → session cookie");
+  ok(/httponly/i.test(good.headers.get("set-cookie") || ""), "Session cookie is HttpOnly (JavaScript can't read it)");
+  const H = { "Content-Type": "application/json", Cookie: cookie };
+  // a fresh booking, then admin sees it with name + ID
+  const m3 = mobile();
+  const bk = await book({ burger: "cheese", date: DATE2, mobile: m3, name: "Admin Visible", quantity: 1 });
+  const data = await (await fetch(`${BASE}/api/admin/data?from=${DATE2}&to=${DATE2}`, { headers: H })).json();
+  const row = data.reservations?.find((r) => r.reservation_id === bk.body.reservationId);
+  ok(row && row.customer_name === "Admin Visible" && row.mobile_number === m3, "Admin sees the booking: ID + name + mobile", JSON.stringify(row));
+  const search = await (await fetch(`${BASE}/api/admin/data?from=${DATE2}&to=${DATE2}&q=${bk.body.reservationId}`, { headers: H })).json();
+  ok(search.reservations.length === 1, "Admin search by reservation ID finds exactly it");
+  const before = (await avail(DATE2)).burgers.cheese.remaining;
+  const noAuth = await fetch(`${BASE}/api/admin/reservations/${bk.body.reservationId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "cancelled" }) });
+  ok(noAuth.status === 401, "Cancel WITHOUT admin login → 401 (customers can't cancel)");
+  ok((await avail(DATE2)).burgers.cheese.remaining === before, "…and nothing was released");
+  for (const method of ["DELETE", "PUT"]) {
+    const r2 = await fetch(`${BASE}/api/reservations/${bk.body.reservationId}`, { method, headers: { "Content-Type": "application/json" } });
+    ok(r2.status === 404 || r2.status === 405, `No public ${method} endpoint exists for reservations`);
+  }
+  const bogus = await fetch(`${BASE}/api/admin/reservations/${bk.body.reservationId}`, { method: "PATCH", headers: { ...H, Origin: "https://evil.example" }, body: JSON.stringify({ status: "cancelled" }) });
+  ok(bogus.status === 403, "Cancel from another website's origin → 403 (CSRF guard)");
+  const done = await fetch(`${BASE}/api/admin/reservations/${bk.body.reservationId}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "cancelled" }) });
+  ok(done.status === 200, "Admin cancel succeeds");
+  ok((await avail(DATE2)).burgers.cheese.remaining === before + 1, "Cancelling puts the burger back in stock (+1)", String((await avail(DATE2)).burgers.cheese.remaining));
+  const again = await book({ burger: "cheese", date: DATE2, mobile: m3, name: "Admin Visible", quantity: 1 });
+  ok(again.body.ok, "Same customer can book again after an admin cancel");
+  const inv = await fetch(`${BASE}/api/admin/reservations/${bk.body.reservationId}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "hacked" }) });
+  ok(inv.status === 400, "Invalid status value rejected");
+}
+
 console.log("\nPrivacy / security");
 const pub = JSON.stringify(await (await fetch(`${BASE}/api/availability`)).json());
 ok(!/mobile|customer|name/i.test(pub), "Public availability API exposes no customer fields");
