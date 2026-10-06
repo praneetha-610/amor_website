@@ -13,6 +13,8 @@ interface Props {
   whatsappNumber: string;
   location: string;
   hours: string;
+  /** When set (pop-up mode) the last button opens the permanent ticket page instead of going home. */
+  fullUrl?: string;
 }
 
 function esc(s: string) {
@@ -65,7 +67,11 @@ export function ConfirmationActions(p: Props) {
       <button type="button" className="btn btn--outline btn--lg btn--block" onClick={addToCalendar}>
         {downloaded ? "ADDED — CHECK YOUR DOWNLOADS" : "ADD TO CALENDAR"}
       </button>
-      <Link href="/" className="btn btn--ghost btn--lg btn--block">BACK TO AMOR FATI</Link>
+      {p.fullUrl ? (
+        <Link href={p.fullUrl} className="btn btn--ghost btn--lg btn--block">OPEN THIS TICKET AS A PAGE</Link>
+      ) : (
+        <Link href="/" className="btn btn--ghost btn--lg btn--block">BACK TO AMOR FATI</Link>
+      )}
     </div>
   );
 }

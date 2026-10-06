@@ -1,6 +1,7 @@
 -- ════════════════════════════════════════════════════════════════
 --  AMOR FATI — database schema
---  Run this ONCE in Supabase → SQL Editor. Safe to re-run.
+--  Run this in Supabase → SQL Editor. SAFE TO RE-RUN any time: on an existing
+--  database it just adds whatever is missing and never touches your bookings.
 -- ════════════════════════════════════════════════════════════════
 
 
@@ -18,8 +19,17 @@ create table if not exists public.reservations (
   consent_accepted    boolean not null default false,     -- agreed to pay even if they don't show up
   consent_accepted_at timestamptz,
   unit_price       int,                                  -- ₹ per burger at booking time
+  collected_at     timestamptz,                          -- staff marked it collected (customer showed their ID)
+  cancelled_at     timestamptz,                          -- an admin cancelled it
   created_at       timestamptz not null default now()
 );
+
+-- Upgrade path: columns added after the first release (no-ops if they already exist).
+alter table public.reservations add column if not exists consent_accepted    boolean not null default false;
+alter table public.reservations add column if not exists consent_accepted_at timestamptz;
+alter table public.reservations add column if not exists unit_price          int;
+alter table public.reservations add column if not exists collected_at        timestamptz;
+alter table public.reservations add column if not exists cancelled_at        timestamptz;
 
 create index if not exists reservations_inventory_idx
   on public.reservations (burger_type, reservation_date) where status <> 'cancelled';

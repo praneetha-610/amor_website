@@ -59,6 +59,8 @@ function seed(rows: Reservation[]) {
         unit_price: getBurger(burger).price,
         consent_accepted: true,
         consent_accepted_at: new Date().toISOString(),
+        collected_at: null,
+        cancelled_at: null,
       });
     }
   }
@@ -135,6 +137,8 @@ export const demoStore: Store = {
       unit_price: i.unitPrice,
       consent_accepted: true,
       consent_accepted_at: new Date().toISOString(),
+      collected_at: null,
+      cancelled_at: null,
     };
     s.rows.push(reservation);
     if (i.idempotencyKey) s.idem.set(i.idempotencyKey, i.reservationId);
@@ -145,18 +149,29 @@ export const demoStore: Store = {
     return state().rows.find((r) => r.reservation_id === reservationId) ?? null;
   },
 
+  async findByMobile(mobile) {
+    return state()
+      .rows.filter((r) => r.mobile_number === mobile)
+      .sort((a, b) => (a.reservation_date < b.reservation_date ? 1 : -1))
+      .map((r) => ({ ...r }));
+  },
+
   async listReservations({ from, to, q, status }: ListFilter) {
-    const needle = (q ?? "").trim().toLowerCase();
+    const term = (q ?? "").trim();
+    const digits = term.replace(/\D/g, "");
+    // Same rule as the Supabase store: pick ONE field by the shape of the search.
+    const kind = !term ? null : /^af/i.test(term) ? "id" : digits.length >= 3 && digits.length === term.replace(/[\s+\-]/g, "").length ? "mobile" : "idname";
+    const idNeedle = term.toLowerCase().replace(/[^a-z0-9-]/g, "");
     return state()
       .rows.filter((r) => r.reservation_date >= from && r.reservation_date <= to)
       .filter((r) => !status || r.status === status)
-      .filter(
-        (r) =>
-          !needle ||
-          r.reservation_id.toLowerCase().includes(needle.replace(/^af(?!-)/, "af-")) ||
-          r.mobile_number.includes(needle.replace(/\D/g, "") || "\u0000") ||
-          r.customer_name.toLowerCase().includes(needle),
-      )
+      .filter((r) => {
+        if (kind === null) return true;
+        if (kind === "id") return r.reservation_id.toLowerCase().includes(idNeedle);
+        if (kind === "mobile") return r.mobile_number.includes(digits);
+        // anything else (e.g. "WWVNGU" — the ID without "AF-" — or "ravi"): match the ID OR the name
+        return r.reservation_id.toLowerCase().includes(idNeedle) || r.customer_name.toLowerCase().includes(term.toLowerCase());
+      })
       .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
       .map((r) => ({ ...r }));
   },
@@ -166,6 +181,8 @@ export const demoStore: Store = {
     if (!r) return null;
     if (r.status === "cancelled") return { ...r }; // cancelled is final (it already released its burgers)
     r.status = status;
+    r.collected_at = status === "completed" ? new Date().toISOString() : null;
+    r.cancelled_at = status === "cancelled" ? new Date().toISOString() : null;
     return { ...r };
   },
 };

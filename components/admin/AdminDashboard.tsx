@@ -7,7 +7,7 @@ import type { AdminData } from "@/lib/admin-data";
 import type { Reservation, ReservationStatus } from "@/lib/db/types";
 
 type Preset = "today" | "tomorrow" | "upcoming" | "week" | "custom";
-type View = "list" | "burger" | "sales";
+type View = "list" | "log" | "burger" | "sales";
 
 const NAMES = Object.fromEntries(BURGER_KEYS.map((k) => [k, getBurger(k).shortName])) as Record<BurgerKey, string>;
 const STATUS_LABEL: Record<ReservationStatus, string> = { confirmed: "CONFIRMED", completed: "COLLECTED", cancelled: "CANCELLED", no_show: "NO SHOW" };
@@ -23,6 +23,19 @@ const bookedAt = (iso: string) =>
 
 const pretty = (m: string) => `${m.slice(0, 5)} ${m.slice(5)}`;
 
+const timeOnly = (iso: string) =>
+  new Date(iso).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true });
+
+/** What staff should do with this booking RIGHT NOW. */
+function verdict(r: Reservation, today: string): { tone: "go" | "warn" | "stop" | "done"; text: string } {
+  if (r.status === "cancelled") return { tone: "stop", text: "CANCELLED — do not serve" };
+  if (r.status === "completed") return { tone: "done", text: `ALREADY COLLECTED${r.collected_at ? ` at ${timeOnly(r.collected_at)}` : ""} — don't serve again` };
+  if (r.status === "no_show") return { tone: "warn", text: "Marked NO SHOW earlier" };
+  if (r.reservation_date === today) return { tone: "go", text: `VALID TODAY — hand over ${r.quantity} × ${NAMES[r.burger_type]}` };
+  if (r.reservation_date > today) return { tone: "warn", text: `NOT FOR TODAY — booked for ${shortDate(r.reservation_date)}` };
+  return { tone: "warn", text: `PAST DATE — booked for ${shortDate(r.reservation_date)}` };
+}
+
 export function AdminDashboard({ today, demo }: { today: string; demo: boolean }) {
   const [preset, setPreset] = useState<Preset>("today");
   const [from, setFrom] = useState(today);
@@ -35,7 +48,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<Reservation | null>(null);
+  const [dialog, setDialog] = useState<{ kind: "cancel" | "other-day"; r: Reservation } | null>(null);
   const [updatedAt, setUpdatedAt] = useState("");
   const seq = useRef(0);
 
@@ -98,7 +111,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
       setError("Couldn't update that reservation. Please try again.");
     }
     setBusyId(null);
-    setConfirming(null);
+    setDialog(null);
   }
 
   async function logout() {
@@ -140,6 +153,8 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
     document.body.appendChild(a); a.click(); a.remove();
   }
 
+  const searching = q.trim().length > 0; // counter mode: just the search box + the answer
+  const shownView: View = searching ? "list" : view;
   const single = from === to;
   const rangeLabel = single ? shortDate(from) : `${shortDate(from)} – ${shortDate(to)}`;
 
@@ -159,8 +174,8 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
       {demo && <p className="admin-note">DEMO MODE — sample data only. Connect Supabase to go live.</p>}
       {error && <p className="form__error" role="alert">{error}</p>}
 
-      {/* TODAY */}
-      <section aria-label="Today's inventory">
+      {/* TODAY (hidden while searching, so the answer appears right under the search box) */}
+      {!searching && <section aria-label="Today's inventory">
         <h2 className="admin__h">TODAY · {shortDate(today)}</h2>
         <div className="a-today">
           {BURGER_KEYS.map((k) => {
@@ -177,14 +192,14 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
             );
           })}
         </div>
-      </section>
+      </section>}
 
       {/* FIND — the search box stays pinned while you scroll */}
       <div className="a-searchbar">
         <label className="sr-only" htmlFor="a-search">Search by name, mobile number or reservation ID</label>
         <input id="a-search" type="search" className="a-search" placeholder="Search name · mobile · AF-XXXXXX" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" autoCorrect="off" />
       </div>
-      <section aria-label="Find reservations" className="a-filters">
+      {!searching && <section aria-label="Find reservations" className="a-filters">
         <div className="a-chips" role="group" aria-label="Date range">
           {([["today", "TODAY"], ["tomorrow", "TOMORROW"], ["upcoming", "NEXT 3 DAYS"], ["week", "THIS WEEK"], ["custom", "CUSTOM"]] as [Preset, string][]).map(([p, label]) => (
             <button key={p} type="button" aria-pressed={preset === p} onClick={() => choose(p)}>{label}</button>
@@ -210,9 +225,11 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
             <option value="cancelled">CANCELLED</option>
           </select>
         </label>
-      </section>
+      </section>}
 
-      {data && (
+      {data?.searchedAllDates && <p className="admin-note admin-note--info">Searching <b>all dates</b> for “{q}”. Clear the search to go back to {rangeLabel}.</p>}
+
+      {data && !searching && (
         <section aria-label={`Totals for ${rangeLabel}`} className="a-totals">
           <div><b>{data.totals.bookings}</b><span>BOOKINGS</span></div>
           <div><b>{data.totals.burgers}</b><span>BURGERS</span></div>
@@ -223,22 +240,23 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
       )}
 
       {/* VIEW TABS */}
-      <div className="a-tabs" role="tablist" aria-label="View">
-        {([["list", "ALL BOOKINGS"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
+      {!searching && <div className="a-tabs" role="tablist" aria-label="View">
+        {([["list", "ALL BOOKINGS"], ["log", "COLLECTED LOG"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
           <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}>{label}</button>
         ))}
         <button className="a-tabs__csv" onClick={exportCsv} disabled={!list.length}>⇩ CSV</button>
-      </div>
+      </div>}
 
       {!data ? (
         <p className="admin-note">Loading…</p>
-      ) : view === "list" ? (
+      ) : shownView === "list" ? (
         list.length === 0 ? (
-          <p className="admin-note">No reservations for {rangeLabel} match this search.</p>
+          <p className="admin-note">{searching ? `Nothing found for “${q}” on any date. Check the spelling or try the last 5 digits of the mobile.` : `No reservations for ${rangeLabel}.`}</p>
         ) : (
           <ul className="a-list">
             {list.map((r) => (
               <li key={r.reservation_id} className={`a-res a-res--${r.burger_type}`} data-status={r.status}>
+                {(() => { const v = verdict(r, today); return <p className={`a-verdict a-verdict--${v.tone}`}>{v.text}</p>; })()}
                 <div className="a-res__head">
                   <button className="a-res__id" onClick={() => { navigator.clipboard?.writeText(r.reservation_id); setToast(`Copied ${r.reservation_id}`); }} aria-label={`Reservation ID ${r.reservation_id}, tap to copy`}>
                     {r.reservation_id}
@@ -252,22 +270,36 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
                 </p>
                 <p className="a-res__what">
                   <span className={`a-burger a-burger--${r.burger_type}`}>{NAMES[r.burger_type]}</span>
-                  <b>× {r.quantity}</b> · {formatPrice(reservationTotal(r.burger_type, r.quantity, r.unit_price))} · {longDate(r.reservation_date).replace(/, \d{4}$/, "")}
+                  <b>× {r.quantity}</b> · {formatPrice(reservationTotal(r.burger_type, r.quantity, r.unit_price))} ·
+                  <span className={`a-day ${r.reservation_date === today ? "a-day--today" : "a-day--other"}`}>
+                    {r.reservation_date === today ? "TODAY" : r.reservation_date === addDays(today, 1) ? "TOMORROW" : longDate(r.reservation_date).replace(/, \d{4}$/, "")}
+                  </span>
                 </p>
-                <p className="a-res__meta">Booked {bookedAt(r.created_at)}{r.consent_accepted ? " · ✓ no-show policy accepted" : ""}</p>
+                <p className="a-res__meta">
+                  Booked {bookedAt(r.created_at)}{r.consent_accepted ? " · ✓ no-show policy accepted" : ""}
+                  {r.collected_at && <><br />✓ Collected {bookedAt(r.collected_at)}</>}
+                  {r.cancelled_at && <><br />✕ Cancelled {bookedAt(r.cancelled_at)}</>}
+                </p>
                 {r.status !== "cancelled" && (
                   <div className="a-res__actions">
-                    {r.status === "confirmed" && <button className="a-btn a-btn--go" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "completed")}>✓ COLLECTED</button>}
+                    {r.status === "confirmed" && (
+                      <button className="a-btn a-btn--go" disabled={busyId === r.reservation_id}
+                        onClick={() => (r.reservation_date === today ? setRes(r, "completed") : setDialog({ kind: "other-day", r }))}>
+                        {r.reservation_date === today ? "✓ MARK COLLECTED" : "COLLECT ANYWAY"}
+                      </button>
+                    )}
                     {r.status === "confirmed" && <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "no_show")}>NO SHOW</button>}
                     {(r.status === "completed" || r.status === "no_show") && <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "confirmed")}>UNDO</button>}
-                    <button className="a-btn a-btn--danger" disabled={busyId === r.reservation_id} onClick={() => setConfirming(r)}>CANCEL</button>
+                    <button className="a-btn a-btn--danger" disabled={busyId === r.reservation_id} onClick={() => setDialog({ kind: "cancel", r })}>CANCEL</button>
                   </div>
                 )}
               </li>
             ))}
           </ul>
         )
-      ) : view === "burger" ? (
+      ) : shownView === "log" ? (
+        <CollectedLog rows={list} />
+      ) : shownView === "burger" ? (
         <div className="a-roster">
           {roster.map((b) => (
             <section key={b.burger} className={`a-roster__burger a-roster__burger--${b.burger}`}>
@@ -309,19 +341,27 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
         </table>
       )}
 
-      {/* ADMIN-ONLY CANCEL CONFIRMATION */}
-      {confirming && (
-        <div className="a-modal" role="dialog" aria-modal="true" aria-labelledby="a-cancel-title" onClick={(e) => e.target === e.currentTarget && setConfirming(null)}>
+      {/* ADMIN-ONLY CONFIRMATIONS (cancel / collect a booking made for another day) */}
+      {dialog && (
+        <div className="a-modal" role="dialog" aria-modal="true" aria-labelledby="a-dlg-title" onClick={(e) => e.target === e.currentTarget && setDialog(null)}>
           <div className="a-modal__box">
-            <h2 id="a-cancel-title">CANCEL THIS RESERVATION?</h2>
-            <p className="a-modal__id">{confirming.reservation_id}</p>
-            <p><b>{confirming.customer_name}</b> · {pretty(confirming.mobile_number)}</p>
-            <p>{NAMES[confirming.burger_type]} × {confirming.quantity} · {shortDate(confirming.reservation_date)}</p>
-            <p className="a-modal__note">The {confirming.quantity > 1 ? `${confirming.quantity} burgers go` : "burger goes"} straight back into stock and can be booked by someone else. This can&apos;t be undone.</p>
+            <h2 id="a-dlg-title">{dialog.kind === "cancel" ? "CANCEL THIS RESERVATION?" : "NOT BOOKED FOR TODAY"}</h2>
+            <p className="a-modal__id">{dialog.r.reservation_id}</p>
+            <p><b>{dialog.r.customer_name}</b> · {pretty(dialog.r.mobile_number)}</p>
+            <p>{NAMES[dialog.r.burger_type]} × {dialog.r.quantity} · booked for <b>{shortDate(dialog.r.reservation_date)}</b></p>
+            {dialog.kind === "cancel" ? (
+              <p className="a-modal__note">The {dialog.r.quantity > 1 ? `${dialog.r.quantity} burgers go` : "burger goes"} straight back into stock and can be booked by someone else. Only an admin can do this. It can&apos;t be undone.</p>
+            ) : (
+              <p className="a-modal__note">This reservation is for another day. Only mark it collected if you&apos;re really handing the burger over now.</p>
+            )}
             <div className="a-modal__actions">
-              <button className="a-btn" onClick={() => setConfirming(null)} autoFocus>KEEP IT</button>
-              <button className="a-btn a-btn--danger-solid" disabled={busyId === confirming.reservation_id} onClick={() => setRes(confirming, "cancelled")}>
-                {busyId === confirming.reservation_id ? "CANCELLING…" : "YES, CANCEL"}
+              <button className="a-btn" onClick={() => setDialog(null)} autoFocus>{dialog.kind === "cancel" ? "KEEP IT" : "GO BACK"}</button>
+              <button
+                className={`a-btn ${dialog.kind === "cancel" ? "a-btn--danger-solid" : "a-btn--go"}`}
+                disabled={busyId === dialog.r.reservation_id}
+                onClick={() => setRes(dialog.r, dialog.kind === "cancel" ? "cancelled" : "completed")}
+              >
+                {busyId === dialog.r.reservation_id ? "SAVING…" : dialog.kind === "cancel" ? "YES, CANCEL" : "YES, COLLECTED"}
               </button>
             </div>
           </div>
@@ -330,5 +370,27 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
 
       {toast && <p className="a-toast" role="status">{toast}</p>}
     </main>
+  );
+}
+
+/** Who showed which ID, and when — newest first. */
+function CollectedLog({ rows }: { rows: Reservation[] }) {
+  const done = rows.filter((r) => r.status === "completed").sort((a, b) => ((b.collected_at ?? "") < (a.collected_at ?? "") ? -1 : 1));
+  const burgers = done.reduce((n, r) => n + r.quantity, 0);
+  if (!done.length) return <p className="admin-note">Nobody has been marked collected for this selection yet.</p>;
+  return (
+    <section className="a-log" aria-label="Collected log">
+      <p className="a-log__sum"><b>{done.length}</b> reservations · <b>{burgers}</b> burgers handed over</p>
+      <ol>
+        {done.map((r) => (
+          <li key={r.reservation_id}>
+            <span className="a-log__time">{r.collected_at ? bookedAt(r.collected_at) : "—"}</span>
+            <s className="a-log__id">{r.reservation_id}</s>
+            <span className="a-log__who">{r.customer_name}</span>
+            <span className="a-log__what"><span className={`a-burger a-burger--${r.burger_type}`}>{NAMES[r.burger_type]}</span> × {r.quantity}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

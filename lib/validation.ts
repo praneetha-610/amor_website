@@ -32,6 +32,22 @@ export function isValidName(name: string): boolean {
   return /^[\p{L}\p{M}][\p{L}\p{M} .'’-]{1,59}$/u.test(name);
 }
 
+/**
+ * Forgiving name check for "My reservation": ignores case/punctuation/spacing, and accepts
+ * just the first name or last name ("ravi" matches "Ravi Kumar").
+ */
+export function namesMatch(entered: string, stored: string): boolean {
+  const norm = (s: string) =>
+    s.toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N} ]/gu, " ").replace(/\s+/g, " ").trim();
+  const a = norm(entered);
+  const b = norm(stored);
+  if (a.length < 2 || !b) return false;
+  if (a === b) return true;
+  const have = new Set(b.split(" "));
+  const want = a.split(" ");
+  return want.every((t) => t.length >= 2 && have.has(t));
+}
+
 export interface BookingInput {
   burger: BurgerKey;
   date: string;

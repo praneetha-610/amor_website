@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { bookBurger } from "@/lib/reservations";
+import { bookBurger, toPublic } from "@/lib/reservations";
 import { clientIp, confirmationToken } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
 import { jsonError, readJson, sameOrigin, serverError } from "@/lib/api";
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       ok: true,
       reservationId: id,
       replayed: out.replayed,
+      reservation: toPublic(out.reservation), // powers the confirmation pop-up
       url: `/reserved/${id}?k=${confirmationToken(id)}`,
     });
   } catch (e) {

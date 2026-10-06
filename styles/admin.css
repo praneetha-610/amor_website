@@ -131,3 +131,26 @@
   .a-sales td { display: table-cell; padding: 12px 8px; }
   .a-sales td::before { display: none; }
 }
+
+/* verdict banner on every booking */
+.a-verdict { margin: -4px -4px 4px; padding: 9px 12px; border-radius: 6px; font-size: 0.8125rem; font-weight: 800; letter-spacing: 0.04em; }
+.a-verdict--go { background: #d9f5e3; color: #0a5c2b; }
+.a-verdict--warn { background: #fff0c2; color: #6b4600; }
+.a-verdict--stop { background: #ffd9de; color: #7d0a1d; }
+.a-verdict--done { background: #e6e6e6; color: #333; }
+.a-res[data-status="completed"] .a-res__id, .a-res[data-status="cancelled"] .a-res__id { text-decoration: line-through; text-decoration-thickness: 3px; }
+.a-res[data-status="completed"] { border-color: #0c7a3a; }
+.a-day { font-weight: 900; font-size: 0.6875rem; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 3px; margin-left: 2px; }
+.a-day--today { background: #0c7a3a; color: #fff; }
+.a-day--other { background: #fff0c2; color: #6b4600; }
+.admin-note--info { background: #e4eefc; border-color: #0b57d0; }
+
+/* collected log */
+.a-log__sum { margin-bottom: 8px; font-size: 0.9375rem; }
+.a-log ol { margin: 0; padding: 0; list-style: none; background: #fff; border: 2px solid var(--ink); border-radius: 10px; }
+.a-log li { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "time id id" "who who what"; gap: 2px 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); align-items: center; }
+.a-log li:last-child { border-bottom: 0; }
+.a-log__time { grid-area: time; font-size: 0.75rem; color: var(--muted); font-weight: 700; }
+.a-log__id { grid-area: id; font-weight: 900; letter-spacing: 0.05em; justify-self: end; text-decoration-thickness: 2px; }
+.a-log__who { grid-area: who; font-weight: 700; overflow-wrap: anywhere; }
+.a-log__what { grid-area: what; font-weight: 800; font-size: 0.8125rem; }

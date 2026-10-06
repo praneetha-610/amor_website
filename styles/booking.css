@@ -169,3 +169,67 @@
 .pass__held { margin-top: 6px; text-align: center; font-size: 0.9375rem; font-weight: 600; }
 .ticket__hours { font-size: 0.9375rem; line-height: 1.45; }
 .step { scroll-margin-top: calc(var(--nav-h) + 12px); }
+
+/* ── confirmation pop-up (shown right after reserving) ── */
+.confirmed { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: rgba(0, 0, 0, 0.72); animation: fade 0.25s ease both; }
+.confirmed__box {
+  position: relative; width: min(520px, 100%); max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain;
+  padding: 22px 18px calc(24px + env(safe-area-inset-bottom)); display: grid; gap: 16px;
+  background: var(--accent); color: var(--on-accent); animation: confirmed-in 0.5s var(--ease) both;
+}
+@media (min-width: 560px) { .confirmed__box { border-radius: 14px; max-height: 94dvh; padding: 28px 26px; } }
+@keyframes confirmed-in { from { opacity: 0; transform: translateY(40px) scale(0.98); } to { opacity: 1; transform: none; } }
+.theme-nashville.confirmed .confirmed__box { background: var(--ink); color: #fff; }
+.confirmed__close { position: absolute; top: 8px; right: 8px; width: 48px; height: 48px; border: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.12); color: inherit; font-size: 1.2rem; font-weight: 800; z-index: 2; }
+.theme-nashville .confirmed__close { background: rgba(255, 255, 255, 0.16); }
+.confirmed__head { text-align: center; padding-top: 6px; }
+.confirmed__head .eyebrow { margin-bottom: 0.5rem; }
+.confirmed__title { font-size: clamp(3rem, 15vw, 5rem); font-weight: 900; letter-spacing: -0.06em; line-height: 0.88; text-transform: uppercase; animation: stamp 0.8s var(--ease) 0.15s both; }
+.theme-nashville .confirmed__title { color: var(--red-bright); }
+.confirmed__lede { margin-top: 10px; font-weight: 700; font-size: 1.05rem; }
+.confirmed__tip { background: #fff; color: var(--ink); border: 2px solid var(--ink); border-radius: var(--r); padding: 12px 14px; font-size: 0.9375rem; line-height: 1.4; }
+.theme-nashville .confirmed__tip { border-color: var(--red); }
+.confirmed .pass { animation: none; }
+.confirmed .pass--compact .pass__art { width: 96px; margin-top: -4px; }
+.confirmed .pass--compact { padding: 18px; }
+.confirmed .ticket-actions .btn--outline { border-color: currentColor; color: inherit; }
+.confirmed .ticket-actions .btn--ghost { color: inherit; }
+.confirmed__where { text-align: center; font-size: 0.875rem; line-height: 1.5; opacity: 0.9; }
+.confirmed__done { margin-top: 4px; }
+.theme-cheese.confirmed .confirmed__done { background: var(--ink); color: var(--yellow); }
+.theme-nashville.confirmed .confirmed__done { background: var(--red); }
+
+.reserved-strip { position: sticky; top: calc(var(--nav-h) + 8px); z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; padding: 12px 14px; background: var(--ink); color: #fff; border-radius: var(--r); font-size: 0.9375rem; animation: step-in 0.4s var(--ease) both; }
+.reserved-strip b { letter-spacing: 0.06em; }
+.reserved-strip button { min-height: 40px; padding: 0 14px; background: var(--yellow); color: var(--ink); border: 0; border-radius: var(--r); font-weight: 800; font-size: 0.75rem; letter-spacing: 0.08em; }
+
+/* ── "My reservation" results ── */
+.found { display: grid; gap: 12px; margin-top: 28px; }
+.found__title { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.2em; }
+.found__card { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 16px; background: #fff; border: 2px solid var(--ink); border-radius: var(--r); text-decoration: none; transition: transform 0.25s var(--ease); }
+.found__card:hover { transform: translateY(-2px); }
+.found__card[data-status="cancelled"] { opacity: 0.55; }
+.found__burger { font-weight: 900; letter-spacing: -0.01em; text-transform: uppercase; }
+.found__meta { grid-column: 1; font-size: 0.875rem; color: var(--muted); }
+.found__id { grid-column: 2; grid-row: 1 / span 2; font-weight: 900; letter-spacing: 0.05em; font-size: 1.05rem; text-align: right; }
+.found__status { font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.12em; }
+.found__status[data-status="confirmed"] { color: #0b57d0; }
+.found__status[data-status="completed"] { color: #0c7a3a; }
+.found__status[data-status="cancelled"], .found__status[data-status="no_show"] { color: var(--red); }
+.pass[data-status="completed"] .pass__id strong, .pass[data-status="cancelled"] .pass__id strong { text-decoration: line-through; opacity: 0.6; }
+
+/* pop-up ticket: everything staff need (ID, name, burger, date, qty, total) fits ONE phone screen, ID first,
+   so a plain screenshot of the visible screen is a complete proof of booking */
+.pass--compact { display: flex; flex-direction: column; padding: 14px; }
+.pass--compact .pass__art { display: none; }
+.pass--compact .pass__id { order: -2; margin: 0 0 12px; padding: 14px 10px; }
+.pass--compact .pass__burger { order: -1; font-size: 1rem; }
+.pass--compact .pass__grid { margin-top: 10px; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+.pass--compact .pass__grid > div { padding: 8px 0; }
+.pass--compact .pass__grid > div:nth-child(1), .pass--compact .pass__grid > div:nth-child(2) { grid-column: 1 / -1; }
+.pass--compact dd { font-size: 1.05rem; }
+.pass--compact .pass__show { margin-top: 10px; font-size: 0.75rem; }
+.pass--compact .pass__held { font-size: 0.8125rem; }
+.confirmed__title { font-size: clamp(2.6rem, 13vw, 4.2rem); }
+.confirmed__head { padding-top: 0; }
+.confirmed__tip { padding: 10px 12px; font-size: 0.875rem; }

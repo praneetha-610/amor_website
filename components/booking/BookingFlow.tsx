@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { BURGER_KEYS, formatPrice, getBurger, reservationTotal, siteConfig, type BurgerKey } from "@/config/site";
 import type { AvailabilityPayload, DayAvailability } from "@/lib/inventory";
@@ -10,6 +9,8 @@ import { MESSAGES } from "@/lib/messages";
 import { isValidMobile, isValidName, normalizeMobile, sanitizeName } from "@/lib/validation";
 import { firstBookableDay } from "../availability-utils";
 import { inventoryCopy, statusText } from "../inventory-copy";
+import type { TicketData } from "../ReservationTicket";
+import { ConfirmedModal } from "./ConfirmedModal";
 import { applyLocalBooking, refreshAvailability, useAvailability } from "../useAvailability";
 
 const STATUS_ICON = { available: "●", limited: "◐", sold_out: "✕", closed: "✕" } as const;
@@ -36,7 +37,6 @@ interface Props {
 }
 
 export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }: Props) {
-  const router = useRouter();
   const data = useAvailability(initial);
   const uid = useId();
 
@@ -51,11 +51,16 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
   const [formError, setFormError] = useState<{ message: string; code?: string } | null>(null);
   const [race, setRace] = useState(false);
   const [phase, setPhase] = useState<"idle" | "submitting" | "done">("idle");
+  const [ticket, setTicket] = useState<{ data: TicketData; url: string } | null>(null);
+  const [showTicket, setShowTicket] = useState(false);
 
   const idemKey = useRef(newKey());
   const lock = useRef(false);
   const datesRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const mobileRef = useRef<HTMLInputElement>(null);
+  const consentRef = useRef<HTMLInputElement>(null);
   const [nudge, setNudge] = useState<{ to: "form" | "dates"; n: number } | null>(null);
 
   const cfg = getBurger(burger);
@@ -119,6 +124,12 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
     if (!isValidMobile(normalizeMobile(mobile))) f.mobile = MESSAGES.INVALID_MOBILE;
     setFields(f);
     if (!consent) setConsentErr(siteConfig.noShowConsent.error);
+    // On a phone the button is far below the fields — jump to the first problem so it never feels like "nothing happened".
+    const first = f.name ? nameRef.current : f.mobile ? mobileRef.current : !consent ? consentRef.current : null;
+    if (first) {
+      first.scrollIntoView({ behavior: "smooth", block: "center" });
+      first.focus({ preventScroll: true });
+    }
     return Object.keys(f).length === 0 && consent;
   }
 
@@ -147,10 +158,15 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
       const out = await res.json().catch(() => null);
 
       if (res.ok && out?.ok) {
-        setPhase("done");
         applyLocalBooking(burger, date, qty); // the count drops right away
-        router.push(out.url);
-        return; // keep the lock: a second tap must never create a second booking
+        const r = out.reservation;
+        setTicket({
+          url: out.url,
+          data: { reservationId: r.reservationId, name: r.name, burger: r.burger, date: r.date, quantity: r.quantity, total: r.total, unitPrice: r.unitPrice, status: r.status },
+        });
+        setShowTicket(true); // the confirmation pop-up with the reservation ID
+        setPhase("done");
+        return; // stay locked until the pop-up is closed: a second tap must never create a second booking
       }
 
       const code: string = out?.code ?? "SERVER";
@@ -163,6 +179,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
         setFormError({ message: out.message, code });
       } else if (code === "VALIDATION" && out?.fieldErrors) {
         setFields({ name: out.fieldErrors.name, mobile: out.fieldErrors.mobile });
+        (out.fieldErrors.name ? nameRef.current : out.fieldErrors.mobile ? mobileRef.current : null)?.scrollIntoView({ behavior: "smooth", block: "center" });
         if (out.fieldErrors.consent) setConsentErr(out.fieldErrors.consent);
         setFormError({ message: out.message, code });
       } else {
@@ -175,6 +192,17 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
     setPhase("idle");
   }
 
+  function closeTicket() {
+    setShowTicket(false);
+    // fresh form for a possible next booking; a new idempotency key so it can't replay the old one
+    setName(""); setMobile(""); setQty(1); setConsent(false); setConsentErr(""); setFields({}); setFormError(null);
+    idemKey.current = newKey();
+    lock.current = false;
+    setPhase("idle");
+    void refreshAvailability();
+    setNudge({ to: "dates", n: Date.now() });
+  }
+
   function backToDates() {
     setRace(false);
     datesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -185,6 +213,16 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
 
   return (
     <div className={`booking theme-${burger}`} data-burger={burger}>
+      {showTicket && ticket && <ConfirmedModal ticket={ticket.data} url={ticket.url} onClose={closeTicket} />}
+
+      {/* after the pop-up is closed, the ticket stays one tap away */}
+      {!showTicket && ticket && (
+        <div className="reserved-strip" role="status">
+          <span>✓ Reserved · <b>{ticket.data.reservationId}</b></span>
+          <button type="button" onClick={() => setShowTicket(true)}>VIEW TICKET</button>
+        </div>
+      )}
+
       {/* STEP 1 — burger (only when not locked to a burger page) */}
       {showBoth && (
         <section className="step" aria-labelledby={`${uid}-s1`}>
@@ -323,6 +361,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                 <label htmlFor={`${uid}-name`}>FULL NAME</label>
                 <input
                   id={`${uid}-name`}
+                  ref={nameRef}
                   name="name"
                   autoComplete="name"
                   autoCapitalize="words"
@@ -343,6 +382,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                   <span aria-hidden>+91</span>
                   <input
                     id={`${uid}-mobile`}
+                    ref={mobileRef}
                     name="mobile"
                     type="tel"
                     inputMode="numeric"
@@ -378,6 +418,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                 <label className="consent__box" htmlFor={`${uid}-consent`}>
                   <input
                     id={`${uid}-consent`}
+                    ref={consentRef}
                     type="checkbox"
                     checked={consent}
                     onChange={(e) => { setConsent(e.target.checked); if (e.target.checked) setConsentErr(""); }}
@@ -409,7 +450,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                 aria-describedby={!consent ? `${uid}-consent-hint` : undefined}
               >
                 {submitting ? (
-                  <><span className="spinner" aria-hidden /> {phase === "done" ? "CLAIMED — OPENING YOUR CONFIRMATION" : "CLAIMING YOURS…"}</>
+                  <><span className="spinner" aria-hidden /> {phase === "done" ? "CLAIMED ✓" : "CLAIMING YOURS…"}</>
                 ) : (
                   <>{cfg.cta.reserve} <span className="arrow" aria-hidden>→</span></>
                 )}

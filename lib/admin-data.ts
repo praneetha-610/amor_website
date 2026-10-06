@@ -20,6 +20,8 @@ export interface AdminData {
   daily: { date: string; burgers: Record<BurgerKey, BurgerDay> }[];
   totals: { bookings: number; burgers: number; confirmed: number; completed: number; cancelled: number; no_show: number };
   reservations: Reservation[];
+  /** True when the list is a search across all dates rather than the selected date range. */
+  searchedAllDates: boolean;
 }
 
 function emptyDay(): Record<BurgerKey, BurgerDay> {
@@ -58,10 +60,15 @@ export async function loadAdminData(opts: {
   const status = STATUSES.includes(opts.status as ReservationStatus) ? (opts.status as ReservationStatus) : undefined;
 
   // Unfiltered rows for the numbers; filtered rows for the table.
+  // When staff type a search (ID / name / mobile) we look across EVERY date — a customer may show
+  // up with a booking for another day, and staff need to see that, not "no results".
+  const searching = Boolean(opts.q && opts.q.trim());
   const [all, todayRows, filtered] = await Promise.all([
     store.listReservations({ from, to }),
     store.listReservations({ from: today, to: today }),
-    store.listReservations({ from, to, q: opts.q, status }),
+    searching
+      ? store.listReservations({ from: "2000-01-01", to: "2100-01-01", q: opts.q, status }).then((r) => r.slice(0, 60))
+      : store.listReservations({ from, to, status }),
   ]);
 
   const totals = { bookings: 0, burgers: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 };
@@ -79,5 +86,6 @@ export async function loadAdminData(opts: {
     daily: eachDate(from, to).map((date) => ({ date, burgers: tally(all, date) })),
     totals,
     reservations: filtered,
+    searchedAllDates: searching,
   };
 }

@@ -16,8 +16,15 @@
 ```
 Instagram link ─► Landing page ─► Burger page (or "Claim yours") ─► pick date ─► quantity
    ─► name + mobile ─► review (burger, date, qty, total) ─► tick "I understand…" ─► RESERVE
-   ─► "YOU GOT ONE." confirmation with reservation ID (AF-XXXXXX) ─► visit the cafe on that date
+   ─► POP-UP "YOU GOT ONE." with the big reservation ID (AF-XXXXXX)
+   ─► customer SCREENSHOTS it ─► visits the cafe on that date and shows the ID / screenshot
+   ─► staff type the ID in /admin ─► tap ✓ MARK COLLECTED ─► the ID is struck through and logged with the time
 ```
+
+- **The customer never types an ID to book.** The ID is *created by the system* and shown to them in the pop-up
+  (and on a permanent ticket page).
+- **Lost the ticket?** *My reservation* asks only for **name + mobile number** and lists their bookings with the IDs.
+  A wrong name and an unknown number give the same generic answer, and repeated guessing is rate-limited.
 
 - Dates offered: **today + the next 2 days** (India time). At 12:00 AM IST the window moves forward by itself.
   Today's card turns to "CLOSED" after 10:00 PM (30 minutes before the 10:30 PM close).
@@ -31,7 +38,6 @@ Instagram link ─► Landing page ─► Burger page (or "Claim yours") ─► 
 - **The consent tick is mandatory** — the button stays disabled without it, the server refuses a booking without it,
   and the database refuses it too. The time of consent is saved with the booking.
 - Customers **cannot cancel**. Only a signed-in admin can.
-- "My reservation" lets a customer re-open their confirmation with *reservation ID + mobile number*.
 - Nothing is charged online. The page says so; payment happens at the cafe.
 
 **Where things live**
@@ -57,8 +63,9 @@ Instagram link ─► Landing page ─► Burger page (or "Claim yours") ─► 
 4. Open the file **`supabase/schema.sql`** from this project, copy *everything*, paste it in, press **Run**.
    You should see "Success. No rows returned". This creates the `reservations` table and the booking rules.
 
-   > Already ran the *older* schema earlier? Then instead run `supabase/migrations/002_consent_and_price.sql` first,
-   > deploy, and afterwards `003_drop_old_book_burger.sql`.
+   > **Already ran an earlier version of `schema.sql`?** Just paste and Run the *updated* `supabase/schema.sql` again.
+   > It is safe to repeat: it only adds what's missing (the `collected_at` / `cancelled_at` tracking columns) and never touches your bookings.
+   > (The site also keeps working if you forget — it just won't record collection times until you do.)
 5. Check it worked: left menu → **Table Editor** → you should see `reservations` (empty).
 
 ### Step 2 — Copy the two keys
@@ -116,8 +123,18 @@ Wrong password 6 times → locked for 15 minutes.
    - **⇩ CSV** — downloads the current list (opens in Excel / Google Sheets).
 
 **At the counter — the 10-second routine**
-Customer arrives → ask "name or reservation ID?" → type it in the search box → the card appears
-→ check burger/quantity → tap **✓ COLLECTED**. (Already-collected shows green so nobody gets two.)
+1. Customer shows their **ID or the screenshot** (or tells you their name / mobile).
+2. Type it in the search box — the 6 characters after "AF-", the name, or the last 5 digits of the mobile.
+   While you search, the screen shows only the answer, and it searches **all dates**.
+3. Read the coloured banner on the card:
+   - 🟢 **VALID TODAY — hand over 2 × NASHVILLE** → tap **✓ MARK COLLECTED**. The ID is struck through and the time is recorded.
+   - ⚪ **ALREADY COLLECTED at 2:41 PM — don't serve again** → someone already used this ID (or a copy of the screenshot).
+   - 🟡 **NOT FOR TODAY — booked for OCT 9** → don't serve (the button says COLLECT ANYWAY and asks you to confirm).
+   - 🔴 **CANCELLED** → don't serve.
+4. Clear the search (✕) to go back to the day view.
+
+**COLLECTED LOG tab** — the running record of who showed which ID: time collected, struck-through ID, name, burger × quantity,
+plus how many burgers were handed over in total. Use **⇩ CSV** to keep a copy.
 
 **Buttons on each booking**
 - **✓ COLLECTED** — they picked it up.
@@ -157,6 +174,7 @@ See `public/fonts/README.md`. Until you add the licensed files the burger titles
 |---|---|
 | Red banner "SETUP NEEDED" | Supabase keys missing in Vercel (step 3) or you haven't redeployed (step 4). |
 | `/admin` says "Admin is disabled" | `ADMIN_PASSWORD` isn't set in Vercel. |
+| Collected / cancelled times show nothing | Re-run the updated `supabase/schema.sql` (adds the tracking columns). |
 | Booking says "Something went wrong" | The SQL in step 1 wasn't run, or the keys are wrong/typo'd. Check Vercel → Deployments → Functions logs. |
 | Counts don't go down | Same as above — the site isn't connected to the database. |
 | "Incorrect password" | Passwords are case-sensitive; Vercel needs a redeploy after changing it. |

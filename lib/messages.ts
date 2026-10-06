@@ -10,7 +10,7 @@ export const MESSAGES = {
   INVALID_QUANTITY: (max: number) => `Choose between 1 and ${max} burgers.`,
   DUPLICATE: "You already have a reservation for this date.",
   RATE_LIMITED: "Too many attempts. Please wait a few minutes and try again.",
-  NOT_FOUND: "We couldn't find a reservation with those details.",
+  NOT_FOUND: "We couldn't find a reservation with that name and mobile number. Check the spelling and the number you booked with.",
   NOT_ENOUGH: (n: number) => `Only ${n} left for that date. Lower your quantity or choose another date.`,
 } as const;
 

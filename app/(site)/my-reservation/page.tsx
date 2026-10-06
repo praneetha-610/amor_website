@@ -12,7 +12,7 @@ export default function MyReservationPage() {
       <div className="wrap reserve__inner reserve__inner--narrow">
         <p className="eyebrow">MY RESERVATION</p>
         <h1 className="display-lg">FIND YOURS.</h1>
-        <p className="lede">Enter your reservation ID and the mobile number you booked with.</p>
+        <p className="lede">Enter the name and mobile number you booked with. We&apos;ll show your reservation and its ID.</p>
         <LookupForm />
       </div>
     </section>

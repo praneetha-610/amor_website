@@ -134,6 +134,66 @@ ok(r.status === 400, "Script-tag name rejected");
 r = await book({ burger: "cheese", date: DATE2, mobile: `+91 ${mobile().slice(0, 5)} ${mobile().slice(5)}`.replace(/ /g, "") });
 ok(r.status !== 500, "+91-prefixed numbers don't crash");
 
+console.log("\nTicket pop-up data + My reservation (name + mobile, no ID)");
+{
+  const mT = mobile();
+  const bk = await book({ burger: "nashville", date: DATE2, mobile: mT, name: "Meera Iyer", quantity: 2 });
+  const t = bk.body.reservation;
+  ok(bk.body.ok && /^AF-[A-Z0-9]{6}$/.test(t?.reservationId) && t.name === "Meera Iyer" && t.quantity === 2 && t.total === 2 * t.unitPrice, "Booking response carries the ticket (ID, name, qty, total)", JSON.stringify(bk.body));
+  ok(!("mobile" in t) && !("mobile_number" in t), "…and does not echo the mobile number back");
+  const L = (b, h = {}) => fetch(`${BASE}/api/reservations/lookup`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": ip(), ...h }, body: JSON.stringify(b) }).then(async (r) => ({ status: r.status, body: await r.json() }));
+  let l = await L({ name: "Meera Iyer", mobile: mT });
+  ok(l.status === 200 && l.body.reservations?.[0]?.reservationId === t.reservationId, "Lookup by name + mobile finds the booking (no ID needed)", JSON.stringify(l));
+  ok(l.body.reservations[0].url.startsWith(`/reserved/${t.reservationId}?k=`), "…and returns a signed link to the ticket");
+  l = await L({ name: "meera", mobile: `+91 ${mT.slice(0, 5)} ${mT.slice(5)}` });
+  ok(l.status === 200, "First name only, lowercase, +91 with spaces → still found");
+  l = await L({ name: "Someone Else", mobile: mT });
+  ok(l.status === 404 && l.body.message.includes("couldn't find"), "Right mobile, wrong name → generic not-found");
+  l = await L({ name: "Meera Iyer", mobile: "9000099999" });
+  ok(l.status === 404, "Unknown mobile → the SAME not-found (can't probe which numbers booked)");
+  l = await L({ name: "M", mobile: mT });
+  ok(l.status === 400, "One-letter name rejected");
+  const flood = [];
+  for (let i = 0; i < 8; i++) flood.push((await L({ name: `Guess ${i}`, mobile: mT })).status);
+  ok(flood.includes(429), "Guessing names for one number gets rate-limited");
+  const page = await (await fetch(`${BASE}${bk.body.url}`)).text();
+  ok(page.includes(t.reservationId) && page.includes("Meera Iyer"), "Permanent ticket page shows the same ID + name");
+  ok(!JSON.stringify(await (await fetch(`${BASE}/api/availability`)).json()).includes(t.reservationId), "IDs never appear in the public availability data");
+}
+
+console.log("\nStaff check-in: search all dates, collected timestamps");
+{
+  const pw = process.env.ADMIN_PASSWORD || "demo";
+  const good = await fetch(`${BASE}/api/admin/login`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": ip() }, body: JSON.stringify({ password: pw }) });
+  const H = { "Content-Type": "application/json", Cookie: (good.headers.get("set-cookie") || "").split(";")[0] };
+  const m4 = mobile();
+  const bk = await book({ burger: "cheese", date: DATE2, mobile: m4, name: "Checkin Person", quantity: 1 });
+  const id = bk.body.reservationId;
+  // today's view does NOT include a booking for day+2 …
+  const todayView = await (await fetch(`${BASE}/api/admin/data?from=${dayOffset(0)}&to=${dayOffset(0)}`, { headers: H })).json();
+  ok(!todayView.reservations.some((r) => r.reservation_id === id), "Today's list doesn't include a booking for another day");
+  // … but typing the ID finds it anyway
+  const s1 = await (await fetch(`${BASE}/api/admin/data?from=${dayOffset(0)}&to=${dayOffset(0)}&q=${id.slice(3)}`, { headers: H })).json();
+  ok(s1.searchedAllDates && s1.reservations.some((r) => r.reservation_id === id), "Searching the ID (even just the 6 characters) finds it across all dates");
+  const s2 = await (await fetch(`${BASE}/api/admin/data?from=${dayOffset(0)}&to=${dayOffset(0)}&q=${m4.slice(-5)}`, { headers: H })).json();
+  ok(s2.reservations.some((r) => r.reservation_id === id), "Searching the last 5 digits of the mobile finds it");
+  const s3 = await (await fetch(`${BASE}/api/admin/data?from=${dayOffset(0)}&to=${dayOffset(0)}&q=checkin`, { headers: H })).json();
+  ok(s3.reservations.some((r) => r.reservation_id === id), "Searching by name finds it");
+  let row = s1.reservations.find((r) => r.reservation_id === id);
+  ok(row.collected_at === null, "Not collected yet (collected_at empty)");
+  const before = (await avail(DATE2)).burgers.cheese.remaining;
+  const done = await (await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "completed" }) })).json();
+  ok(done.reservation.status === "completed" && !!done.reservation.collected_at, "Marking collected stamps collected_at");
+  ok((await avail(DATE2)).burgers.cheese.remaining === before, "Collecting does NOT free the burger (it was handed over)");
+  const undo = await (await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "confirmed" }) })).json();
+  ok(undo.reservation.collected_at === null, "UNDO clears collected_at");
+  await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "completed" }) });
+  const lookup = await fetch(`${BASE}/api/reservations/lookup`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": ip() }, body: JSON.stringify({ name: "Checkin Person", mobile: m4 }) }).then((r) => r.json());
+  ok(lookup.reservations[0].status === "completed", "The customer's own lookup now shows COLLECTED");
+  const cx = await (await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "cancelled" }) })).json();
+  ok(cx.reservation.status === "cancelled" && !!cx.reservation.cancelled_at && cx.reservation.collected_at === null, "Cancelling stamps cancelled_at");
+}
+
 console.log("\nAdmin (password: ADMIN_PASSWORD, or \"demo\" in demo mode)");
 {
   const pw = process.env.ADMIN_PASSWORD || "demo";

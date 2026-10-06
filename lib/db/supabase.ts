@@ -31,8 +31,32 @@ function db(): SupabaseClient {
   return client;
 }
 
-const COLUMNS =
-  "id, reservation_id, customer_name, mobile_number, burger_type, reservation_date, quantity, status, created_at, unit_price, consent_accepted, consent_accepted_at";
+/**
+ * We select "*" and pick the fields we want, so the site keeps working even if the newest
+ * columns (collected_at / cancelled_at …) haven't been added to the database yet.
+ * (Also keeps the internal idempotency_key out of every response.)
+ */
+const COLUMNS = "*";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toReservation(r: any): Reservation {
+  return {
+    id: r.id,
+    reservation_id: r.reservation_id,
+    customer_name: r.customer_name,
+    mobile_number: r.mobile_number,
+    burger_type: r.burger_type,
+    reservation_date: r.reservation_date,
+    quantity: r.quantity,
+    status: r.status,
+    created_at: r.created_at,
+    unit_price: r.unit_price ?? null,
+    consent_accepted: r.consent_accepted ?? false,
+    consent_accepted_at: r.consent_accepted_at ?? null,
+    collected_at: r.collected_at ?? null,
+    cancelled_at: r.cancelled_at ?? null,
+  };
+}
 
 export const supabaseStore: Store = {
   kind: "supabase",
@@ -71,9 +95,9 @@ export const supabaseStore: Store = {
     if (error) throw error;
     switch (data?.status) {
       case "ok":
-        return { status: "ok", reservation: data.reservation as Reservation, replayed: false };
+        return { status: "ok", reservation: toReservation(data.reservation), replayed: false };
       case "replayed":
-        return { status: "ok", reservation: data.reservation as Reservation, replayed: true };
+        return { status: "ok", reservation: toReservation(data.reservation), replayed: true };
       case "sold_out":
         return { status: "sold_out" };
       case "not_enough":
@@ -96,47 +120,77 @@ export const supabaseStore: Store = {
       .eq("reservation_id", reservationId)
       .maybeSingle();
     if (error) throw error;
-    return (data as Reservation | null) ?? null;
+    return data ? toReservation(data) : null;
+  },
+
+  async findByMobile(mobile) {
+    const { data, error } = await db()
+      .from("reservations")
+      .select(COLUMNS)
+      .eq("mobile_number", mobile)
+      .order("reservation_date", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return (data ?? []).map(toReservation);
   },
 
   async listReservations({ from, to, q, status }: ListFilter) {
-    let query = db()
-      .from("reservations")
-      .select(COLUMNS)
-      .gte("reservation_date", from)
-      .lte("reservation_date", to)
-      .order("created_at", { ascending: false })
-      .limit(2000);
-    if (status) query = query.eq("status", status);
+    const base = () => {
+      let query = db()
+        .from("reservations")
+        .select(COLUMNS)
+        .gte("reservation_date", from)
+        .lte("reservation_date", to)
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      if (status) query = query.eq("status", status);
+      return query;
+    };
 
     const term = (q ?? "").trim();
-    if (term) {
-      const digits = term.replace(/\D/g, "");
-      // Pick ONE column by the shape of the search — avoids hand-built .or() filter strings.
-      if (/^af/i.test(term)) {
-        query = query.ilike("reservation_id", `%${term.replace(/[^A-Za-z0-9-]/g, "")}%`);
-      } else if (digits.length >= 3 && digits.length === term.replace(/[\s+\-]/g, "").length) {
-        query = query.like("mobile_number", `%${digits}%`);
-      } else {
-        query = query.ilike("customer_name", `%${term.replace(/[^\p{L}\p{M}\p{N} .'’-]/gu, "")}%`);
-      }
+    if (!term) {
+      const { data, error } = await base();
+      if (error) throw error;
+      return (data ?? []).map(toReservation);
     }
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data ?? []) as Reservation[];
+
+    // Pick the column(s) by the SHAPE of the search — separate queries, never hand-built filter strings.
+    const digits = term.replace(/\D/g, "");
+    const idLike = term.replace(/[^A-Za-z0-9-]/g, "");
+    const nameLike = term.replace(/[^\p{L}\p{M}\p{N} .'’-]/gu, "");
+    const isMobile = digits.length >= 3 && digits.length === term.replace(/[\s+\-]/g, "").length;
+
+    const queries = isMobile
+      ? [base().like("mobile_number", `%${digits}%`)]
+      : /^af/i.test(term)
+        ? [base().ilike("reservation_id", `%${idLike}%`)]
+        : [base().ilike("reservation_id", `%${idLike}%`), base().ilike("customer_name", `%${nameLike}%`)];
+
+    const results = await Promise.all(queries);
+    const seen = new Map<string, Reservation>();
+    for (const { data, error } of results) {
+      if (error) throw error;
+      for (const row of data ?? []) seen.set(row.reservation_id, toReservation(row));
+    }
+    return [...seen.values()].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
   },
 
   async updateStatus(reservationId, status: ReservationStatus) {
     // Cancelled is terminal, so a status change can never silently re-take a released burger.
-    const { data, error } = await db()
-      .from("reservations")
-      .update({ status })
-      .eq("reservation_id", reservationId)
-      .neq("status", "cancelled")
-      .select(COLUMNS)
-      .maybeSingle();
+    const now = new Date().toISOString();
+    const withStamps = {
+      status,
+      collected_at: status === "completed" ? now : null,
+      cancelled_at: status === "cancelled" ? now : null,
+    };
+    const run = (patch: Record<string, unknown>) =>
+      db().from("reservations").update(patch).eq("reservation_id", reservationId).neq("status", "cancelled").select(COLUMNS).maybeSingle();
+
+    let { data, error } = await run(withStamps);
+    // Database not upgraded yet (no collected_at / cancelled_at columns)? Still change the status.
+    if (error && (error.code === "42703" || error.code === "PGRST204")) ({ data, error } = await run({ status }));
     if (error) throw error;
-    if (data) return data as Reservation;
+    if (data) return toReservation(data);
     return this.getReservation(reservationId);
   },
 };

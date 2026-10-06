@@ -25,6 +25,10 @@ export interface Reservation {
   /** Customer ticked the no-show / pay-even-if-absent consent. */
   consent_accepted: boolean;
   consent_accepted_at: string | null;
+  /** When staff marked it collected (the customer showed their ID). null if not collected. */
+  collected_at: string | null;
+  /** When an admin cancelled it. null if not cancelled. */
+  cancelled_at: string | null;
 }
 
 export interface ClaimedRow {
@@ -74,6 +78,8 @@ export interface Store {
   /** Atomic: check inventory + duplicate + insert as ONE indivisible step. */
   createReservation(input: CreateInput): Promise<CreateResult>;
   getReservation(reservationId: string): Promise<Reservation | null>;
+  /** All reservations booked with this mobile number (newest date first). Caller must check the name. */
+  findByMobile(mobile: string): Promise<Reservation[]>;
   listReservations(filter: ListFilter): Promise<Reservation[]>;
   updateStatus(reservationId: string, status: ReservationStatus): Promise<Reservation | null>;
 }

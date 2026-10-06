@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { formatPrice, getBurger, reservationTotal, siteConfig } from "@/config/site";
+import { getBurger, reservationTotal, siteConfig } from "@/config/site";
 import { getStore } from "@/lib/db";
-import { longDate, monthDay } from "@/lib/dates";
+import { monthDay } from "@/lib/dates";
 import { RESERVATION_ID_RE, verifyConfirmationToken } from "@/lib/security";
-import { BurgerArt } from "@/components/BurgerArt";
+import { ReservationTicket } from "@/components/ReservationTicket";
 import { ConfirmationActions } from "@/components/ConfirmationActions";
 
 export const dynamic = "force-dynamic";
@@ -71,27 +71,18 @@ export default async function ConfirmationPage({
           )}
         </div>
 
-        <article className="pass" aria-label="Reservation confirmation">
-          <BurgerArt burger={r.burger_type} className="pass__art" />
-          <p className="pass__burger">{cfg.name}</p>
-          <dl className="pass__grid">
-            <div><dt>RESERVED FOR</dt><dd>{r.customer_name}</dd></div>
-            <div><dt>DATE</dt><dd>{longDate(r.reservation_date)}</dd></div>
-            <div><dt>QUANTITY</dt><dd>{r.quantity}</dd></div>
-            <div><dt>TOTAL AMOUNT</dt><dd>{formatPrice(total)}{r.quantity > 1 && <small className="pass__each"> ({formatPrice(unit)} each)</small>}</dd></div>
-            <div><dt>STATUS</dt><dd className="pass__status" data-status={r.status}>{r.status.replace("_", " ").toUpperCase()}</dd></div>
-          </dl>
-          <div className="pass__id">
-            <span>RESERVATION ID</span>
-            <strong>{r.reservation_id}</strong>
-          </div>
-          {!cancelled && !completed && (
-            <>
-              <p className="pass__show">SHOW THIS CONFIRMATION AT AMOR FATI</p>
-              <p className="pass__held">Your burger has been reserved specifically for you.</p>
-            </>
-          )}
-        </article>
+        <ReservationTicket
+          t={{
+            reservationId: r.reservation_id,
+            name: r.customer_name,
+            burger: r.burger_type,
+            date: r.reservation_date,
+            quantity: r.quantity,
+            total,
+            unitPrice: unit,
+            status: r.status,
+          }}
+        />
 
         {!cancelled && (
           <ConfirmationActions
