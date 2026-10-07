@@ -11,6 +11,7 @@ import { firstBookableDay } from "../availability-utils";
 import { inventoryCopy, statusText } from "../inventory-copy";
 import type { TicketData } from "../ReservationTicket";
 import { ConfirmedModal } from "./ConfirmedModal";
+import { DateCalendar } from "./DateCalendar";
 import { applyLocalBooking, refreshAvailability, useAvailability } from "../useAvailability";
 
 const STATUS_ICON = { available: "●", limited: "◐", sold_out: "✕", closed: "✕" } as const;
@@ -262,8 +263,10 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
         {noDates ? (
           <p className="notice" role="status">{MESSAGES.DATE_UNAVAILABLE}</p>
         ) : (
-          <div className="dates" role="group" aria-label="Available dates">
-            {data.days.map((d) => {
+          <>
+          <p className="dates__label">NEXT 3 DAYS</p>
+          <div className="dates" role="group" aria-label="Next three days">
+            {data.days.slice(0, 3).map((d) => {
               const mine = d.burgers[burger];
               const selected = d.date === date;
               const closed = !d.bookable; // e.g. today, after the cutoff
@@ -306,12 +309,20 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
               );
             })}
           </div>
+          </>
         )}
         <p className="legend">
           <span><span aria-hidden>●</span> AVAILABLE</span>
           <span><span aria-hidden>◐</span> LIMITED</span>
           <span><span aria-hidden>✕</span> SOLD OUT</span>
         </p>
+
+        {data.days.length > 3 && (
+          <>
+            <p className="dates__label dates__label--cal">OR PICK ANY OTHER DATE · BOOKING OPEN {data.days.length} DAYS AHEAD</p>
+            <DateCalendar data={data} burger={burger} selected={date} onSelect={chooseDate} />
+          </>
+        )}
       </section>
 
       {/* Lost the last burger to someone else a moment ago */}

@@ -96,6 +96,7 @@ export function LiveInventory({
     <div className="live-meter">
       <DayCounts burger={burger} data={data} selected={active.date} onSelect={setPicked} />
       <InventoryMeter remaining={b.remaining} limit={b.limit} caption={when} size={size} />
+      {data.days.length > 3 && <a href="#claim" className="live-meter__more">Booking is open {data.days.length} days ahead — pick any date in the calendar ↓</a>}
     </div>
   );
 }

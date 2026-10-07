@@ -25,12 +25,25 @@ function parts(now: Date) {
   return o;
 }
 
-export function todayIST(now: Date = new Date()): string {
+/**
+ * "Now". Always the real clock in production. In development/tests ONLY, set FAKE_NOW to an
+ * ISO instant (e.g. 2026-10-31T18:29:00Z = 11:59 PM IST) to rehearse the midnight rollover.
+ */
+export function clock(): Date {
+  const fake = process.env.NODE_ENV !== "production" ? process.env.FAKE_NOW : undefined;
+  if (fake) {
+    const d = new Date(fake);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
+export function todayIST(now: Date = clock()): string {
   const p = parts(now);
   return `${p.year}-${p.month}-${p.day}`;
 }
 
-export function minutesNowIST(now: Date = new Date()): number {
+export function minutesNowIST(now: Date = clock()): number {
   const p = parts(now);
   return Number(p.hour) * 60 + Number(p.minute);
 }
@@ -83,7 +96,7 @@ export function relativeLabel(iso: string, today: string): string {
 }
 
 /** First and last bookable dates (inclusive), derived from config. */
-export function bookingWindow(now: Date = new Date()): { start: string; end: string } {
+export function bookingWindow(now: Date = clock()): { start: string; end: string } {
   const today = todayIST(now);
   const cfgStart = siteConfig.bookingStartDate;
   const start = cfgStart && isValidISODate(cfgStart) && cfgStart > today ? cfgStart : today;
@@ -93,12 +106,19 @@ export function bookingWindow(now: Date = new Date()): { start: string; end: str
   return { start, end };
 }
 
+/** Switched off by the owner (closedDates / closedWeekdays in config)? */
+export function isClosedDate(iso: string): boolean {
+  if (!isValidISODate(iso)) return true;
+  return siteConfig.closedDates.includes(iso) || siteConfig.closedWeekdays.includes(utc(iso).getUTCDay());
+}
+
 /**
  * Is this date reservable right now?
- * (inside the window, not in the past, and — for today — before the cutoff)
+ * (inside the rolling window, not in the past, not a closed date, and — for today — before the cutoff)
  */
-export function isBookableDate(iso: string, now: Date = new Date()): boolean {
+export function isBookableDate(iso: string, now: Date = clock()): boolean {
   if (!isValidISODate(iso)) return false;
+  if (isClosedDate(iso)) return false;
   const { start, end } = bookingWindow(now);
   const today = todayIST(now);
   if (iso < start || iso > end || iso < today) return false;
@@ -113,4 +133,51 @@ export function eachDate(from: string, to: string): string[] {
   const out: string[] = [];
   for (let d = from; d <= to && out.length < 400; d = addDays(d, 1)) out.push(d);
   return out;
+}
+
+// ── calendar helpers (shared by the customer calendar and the admin calendar) ──
+
+/** Monday = 0 … Sunday = 6 */
+export function weekdayMon0(iso: string): number {
+  return (utc(iso).getUTCDay() + 6) % 7;
+}
+
+/** "2026-10-17" → "2026-10-01" */
+export function monthStart(iso: string): string {
+  return `${iso.slice(0, 7)}-01`;
+}
+
+/** "2026-10-17" → "2026-10-31" */
+export function monthEnd(iso: string): string {
+  const [y, m] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
+/** First day of the month `n` months from `iso`'s month. */
+export function addMonths(iso: string, n: number): string {
+  const [y, m] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 10);
+}
+
+/** "October 2026" */
+export function monthLabel(iso: string): string {
+  const [y, m] = iso.split("-").map(Number);
+  return `${MONTHS_LONG[m - 1]} ${y}`;
+}
+
+/** Weeks (Mon→Sun) covering the month of `iso`; cells outside the month are null. */
+export function monthGrid(iso: string): (string | null)[][] {
+  const first = monthStart(iso);
+  const last = monthEnd(iso);
+  const cells: (string | null)[] = Array.from({ length: weekdayMon0(first) }, () => null);
+  for (const d of eachDate(first, last)) cells.push(d);
+  while (cells.length % 7) cells.push(null);
+  const weeks: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+
+/** "28" */
+export function dayOfMonth(iso: string): number {
+  return Number(iso.slice(8, 10));
 }

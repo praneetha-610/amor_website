@@ -6,7 +6,7 @@ import type { AvailabilityPayload } from "@/lib/inventory";
 import { DayCounts } from "./DayCounts";
 import { useAvailability } from "./useAvailability";
 
-/** The landing page's live scarcity panel: real, database-backed numbers for today and the next 2 days. */
+/** The landing page's live scarcity panel: real, database-backed numbers for today and the next 2 days (the full booking window is on /reserve). */
 export function TodaysDrop({ initial }: { initial: AvailabilityPayload }) {
   const data = useAvailability(initial);
   return (
@@ -35,6 +35,7 @@ export function TodaysDrop({ initial }: { initial: AvailabilityPayload }) {
           })}
         </ul>
       )}
+      <Link href="/reserve" className="today__all">See every date · booking is open {data.days.length || ""} days ahead →</Link>
     </section>
   );
 }

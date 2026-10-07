@@ -89,3 +89,49 @@ export async function loadAdminData(opts: {
     searchedAllDates: searching,
   };
 }
+
+// ── month calendar for the admin panel ──────────────────────────────────────
+
+export interface CalendarDay {
+  date: string;
+  /** reservations that hold burgers (not cancelled) */
+  bookings: number;
+  burgers: Record<BurgerKey, { sold: number; completed: number; limit: number; remaining: number }>;
+}
+
+export interface CalendarMonth {
+  month: string; // YYYY-MM-01
+  today: string;
+  days: CalendarDay[];
+  totals: { bookings: number; burgers: number; perBurger: Record<BurgerKey, { sold: number; capacity: number }> };
+}
+
+/** One entry per day of the month (zeros where nothing was booked) + month totals. Works for past and future months. */
+export async function loadCalendarMonth(anyDateInMonth: string): Promise<CalendarMonth> {
+  const from = `${anyDateInMonth.slice(0, 7)}-01`;
+  const [y, m] = from.split("-").map(Number);
+  const to = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+
+  const rows = await getStore().listReservations({ from, to });
+  const byDate = new Map<string, Reservation[]>();
+  for (const r of rows) (byDate.get(r.reservation_date) ?? byDate.set(r.reservation_date, []).get(r.reservation_date)!).push(r);
+
+  const perBurger = {} as CalendarMonth["totals"]["perBurger"];
+  for (const k of BURGER_KEYS) perBurger[k] = { sold: 0, capacity: 0 };
+  let bookings = 0;
+  let burgers = 0;
+
+  const days = eachDate(from, to).map<CalendarDay>((date) => {
+    const t = tally(byDate.get(date) ?? [], date);
+    const count = (byDate.get(date) ?? []).filter((r) => HOLDS_INVENTORY(r.status)).length;
+    bookings += count;
+    for (const k of BURGER_KEYS) {
+      burgers += t[k].sold;
+      perBurger[k].sold += t[k].sold;
+      perBurger[k].capacity += t[k].limit;
+    }
+    return { date, bookings: count, burgers: t };
+  });
+
+  return { month: from, today: todayIST(), days, totals: { bookings, burgers, perBurger } };
+}

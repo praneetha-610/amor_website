@@ -5,7 +5,7 @@ import type { AvailabilityPayload } from "@/lib/inventory";
 import { relativeLabel, shortDate } from "@/lib/dates";
 
 /**
- * One burger's live count for EACH reservable date (today + next 2), side by side:
+ * One burger's live count for the NEXT 3 reservable dates (the full window is in the calendar), side by side:
  *   TODAY OCT 07 · 30 LEFT   |   TOMORROW OCT 08 · 28 LEFT   |   THU OCT 09 · 30 LEFT
  * Used everywhere counts appear, so a booking for any date is visible immediately.
  * Pass `selected` + `onSelect` to make the cells a day picker (burger page meter).
@@ -16,17 +16,21 @@ export function DayCounts({
   selected,
   onSelect,
   tone = "light",
+  limit = 3,
 }: {
   burger: BurgerKey;
   data: AvailabilityPayload;
   selected?: string;
   onSelect?: (date: string) => void;
   tone?: "light" | "dark";
+  /** how many upcoming dates to show (the booking window itself is longer) */
+  limit?: number;
 }) {
   if (!data.days.length) return null;
+  const days = data.days.slice(0, limit);
   return (
     <div className={`daycounts daycounts--${tone}`} role="group" aria-label="Burgers left on each date">
-      {data.days.map((d) => {
+      {days.map((d) => {
         const b = d.burgers[burger];
         const closed = !d.bookable;
         const sold = b.remaining <= 0;

@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BURGER_KEYS, formatPrice, getBurger, reservationTotal, type BurgerKey } from "@/config/site";
-import { addDays, shortDate, longDate } from "@/lib/dates";
-import type { AdminData } from "@/lib/admin-data";
+import { addDays, addMonths, dayOfMonth, eachDate, longDate, monthGrid, monthLabel, monthStart, shortDate } from "@/lib/dates";
+import type { AdminData, CalendarMonth } from "@/lib/admin-data";
 import type { Reservation, ReservationStatus } from "@/lib/db/types";
 import { lockScroll } from "@/lib/scroll-lock";
 
-type Preset = "today" | "tomorrow" | "upcoming" | "week" | "custom";
-type View = "list" | "log" | "burger" | "sales";
+type Preset = "today" | "tomorrow" | "upcoming" | "week" | "month" | "custom";
+type View = "list" | "calendar" | "log" | "burger" | "sales";
 
 const NAMES = Object.fromEntries(BURGER_KEYS.map((k) => [k, getBurger(k).shortName])) as Record<BurgerKey, string>;
 const STATUS_LABEL: Record<ReservationStatus, string> = { confirmed: "CONFIRMED", completed: "COLLECTED", cancelled: "CANCELLED", no_show: "NO SHOW" };
@@ -51,13 +51,19 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
   const [busyId, setBusyId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<Reservation | null>(null);
   const [updatedAt, setUpdatedAt] = useState("");
+  // calendar tab
+  const [calMonth, setCalMonth] = useState(monthStart(today));
+  const [cal, setCal] = useState<CalendarMonth | null>(null);
+  const [rangeMode, setRangeMode] = useState(false);
+  const [anchor, setAnchor] = useState<string | null>(null);
   const seq = useRef(0);
 
   const choose = (p: Preset) => {
     setPreset(p);
     if (p === "today") { setFrom(today); setTo(today); }
     if (p === "tomorrow") { setFrom(addDays(today, 1)); setTo(addDays(today, 1)); }
-    if (p === "upcoming") { setFrom(today); setTo(addDays(today, 2)); }
+    if (p === "upcoming") { setFrom(today); setTo(addDays(today, 6)); }
+    if (p === "month") { setFrom(monthStart(today)); setTo(addDays(addMonths(today, 1), -1)); }
     if (p === "week") { const [a, b] = weekRange(today); setFrom(a); setTo(b); }
   };
 
@@ -82,6 +88,20 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
     const t = setTimeout(load, q ? 250 : 0);
     return () => clearTimeout(t);
   }, [load, q]);
+
+  const loadCal = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/calendar?month=${calMonth.slice(0, 7)}`, { cache: "no-store" });
+      if (res.status === 401) { location.reload(); return; }
+      const out = await res.json();
+      if (res.ok) setCal(out);
+    } catch { /* keep the last month shown */ }
+  }, [calMonth]);
+
+  // refresh the calendar when its tab is open, the month changes, or the bookings list changed (e.g. after a cancel)
+  useEffect(() => {
+    if (view === "calendar") void loadCal();
+  }, [view, loadCal, data]);
 
   useEffect(() => {
     const id = setInterval(() => document.visibilityState === "visible" && load(), 20_000);
@@ -165,8 +185,68 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
 
   const searching = q.trim().length > 0; // counter mode: just the search box + the answer
   const shownView: View = searching ? "list" : view;
+  function pickDay(date: string) {
+    setPreset("custom");
+    if (rangeMode && anchor) {
+      const [a, b] = anchor <= date ? [anchor, date] : [date, anchor];
+      setFrom(a); setTo(b); setAnchor(null);
+    } else {
+      setFrom(date); setTo(date);
+      setAnchor(rangeMode ? date : null);
+    }
+  }
+
   const single = from === to;
   const rangeLabel = single ? shortDate(from) : `${shortDate(from)} – ${shortDate(to)}`;
+
+  const renderCards = () => (
+          <ul className="a-list">
+      {list.map((r) => (
+        <li key={r.reservation_id} className={`a-res a-res--${r.burger_type}`} data-status={r.status}>
+          {(() => { const v = verdict(r, today); return <p className={`a-verdict a-verdict--${v.tone}`}>{v.text}</p>; })()}
+          <div className="a-res__head">
+            <button className="a-res__id" onClick={() => { navigator.clipboard?.writeText(r.reservation_id); setToast(`Copied ${r.reservation_id}`); }} aria-label={`Reservation ID ${r.reservation_id}, tap to copy`}>
+              {r.reservation_id}
+            </button>
+            <span className={`a-pill a-pill--${r.status}`}>{STATUS_LABEL[r.status]}</span>
+          </div>
+          <p className="a-res__name">{r.customer_name}</p>
+          <p className="a-res__contact">
+            <a href={`tel:+91${r.mobile_number}`}>📞 {pretty(r.mobile_number)}</a>
+            <a href={`https://wa.me/91${r.mobile_number}`} target="_blank" rel="noopener noreferrer">WhatsApp ↗</a>
+          </p>
+          <p className="a-res__what">
+            <span className={`a-burger a-burger--${r.burger_type}`}>{NAMES[r.burger_type]}</span>
+            <b>× {r.quantity}</b> · {formatPrice(reservationTotal(r.burger_type, r.quantity, r.unit_price))} ·
+            <span className={`a-day ${r.reservation_date === today ? "a-day--today" : "a-day--other"}`}>
+              {r.reservation_date === today ? "TODAY" : r.reservation_date === addDays(today, 1) ? "TOMORROW" : longDate(r.reservation_date).replace(/ \d{4}$/, "")}
+            </span>
+          </p>
+          <p className="a-res__meta">
+            Booked {bookedAt(r.created_at)}{r.consent_accepted ? " · ✓ no-show policy accepted" : ""}
+            {r.collected_at && <><br />✓ Collected {bookedAt(r.collected_at)}</>}
+            {r.cancelled_at && <><br />✕ Cancelled {bookedAt(r.cancelled_at)}</>}
+          </p>
+          {r.status !== "cancelled" && (
+            <div className="a-res__actions">
+              {/* Collecting is only possible for TODAY's bookings — every date has its own 30 burgers. */}
+              {r.status === "confirmed" && r.reservation_date === today && (
+                <button className="a-btn a-btn--go" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "completed")}>✓ MARK COLLECTED</button>
+              )}
+              {/* "No show" only makes sense once the day has come. */}
+              {r.status === "confirmed" && r.reservation_date <= today && (
+                <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "no_show")}>NO SHOW</button>
+              )}
+              {(r.status === "completed" || r.status === "no_show") && (
+                <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "confirmed")}>UNDO</button>
+              )}
+              <button className="a-btn a-btn--danger" disabled={busyId === r.reservation_id} onClick={() => setCancelling(r)}>CANCEL</button>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <main className="admin">
@@ -211,7 +291,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
       </div>
       {!searching && <section aria-label="Find reservations" className="a-filters">
         <div className="a-chips" role="group" aria-label="Date range">
-          {([["today", "TODAY"], ["tomorrow", "TOMORROW"], ["upcoming", "NEXT 3 DAYS"], ["week", "THIS WEEK"], ["custom", "CUSTOM"]] as [Preset, string][]).map(([p, label]) => (
+          {([["today", "TODAY"], ["tomorrow", "TOMORROW"], ["upcoming", "NEXT 7 DAYS"], ["week", "THIS WEEK"], ["month", "THIS MONTH"], ["custom", "CUSTOM"]] as [Preset, string][]).map(([p, label]) => (
             <button key={p} type="button" aria-pressed={preset === p} onClick={() => choose(p)}>{label}</button>
           ))}
         </div>
@@ -251,7 +331,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
 
       {/* VIEW TABS */}
       {!searching && <div className="a-tabs" role="tablist" aria-label="View">
-        {([["list", "ALL BOOKINGS"], ["log", "COLLECTED LOG"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
+        {([["list", "ALL BOOKINGS"], ["calendar", "CALENDAR"], ["log", "COLLECTED LOG"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
           <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}>{label}</button>
         ))}
         <button className="a-tabs__csv" onClick={exportCsv} disabled={!list.length}>⇩ CSV</button>
@@ -263,53 +343,82 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
         list.length === 0 ? (
           <p className="admin-note">{searching ? `Nothing found for “${q}” on any date. Check the spelling or try the last 5 digits of the mobile.` : `No reservations for ${rangeLabel}.`}</p>
         ) : (
-          <ul className="a-list">
-            {list.map((r) => (
-              <li key={r.reservation_id} className={`a-res a-res--${r.burger_type}`} data-status={r.status}>
-                {(() => { const v = verdict(r, today); return <p className={`a-verdict a-verdict--${v.tone}`}>{v.text}</p>; })()}
-                <div className="a-res__head">
-                  <button className="a-res__id" onClick={() => { navigator.clipboard?.writeText(r.reservation_id); setToast(`Copied ${r.reservation_id}`); }} aria-label={`Reservation ID ${r.reservation_id}, tap to copy`}>
-                    {r.reservation_id}
-                  </button>
-                  <span className={`a-pill a-pill--${r.status}`}>{STATUS_LABEL[r.status]}</span>
-                </div>
-                <p className="a-res__name">{r.customer_name}</p>
-                <p className="a-res__contact">
-                  <a href={`tel:+91${r.mobile_number}`}>📞 {pretty(r.mobile_number)}</a>
-                  <a href={`https://wa.me/91${r.mobile_number}`} target="_blank" rel="noopener noreferrer">WhatsApp ↗</a>
-                </p>
-                <p className="a-res__what">
-                  <span className={`a-burger a-burger--${r.burger_type}`}>{NAMES[r.burger_type]}</span>
-                  <b>× {r.quantity}</b> · {formatPrice(reservationTotal(r.burger_type, r.quantity, r.unit_price))} ·
-                  <span className={`a-day ${r.reservation_date === today ? "a-day--today" : "a-day--other"}`}>
-                    {r.reservation_date === today ? "TODAY" : r.reservation_date === addDays(today, 1) ? "TOMORROW" : longDate(r.reservation_date).replace(/ \d{4}$/, "")}
-                  </span>
-                </p>
-                <p className="a-res__meta">
-                  Booked {bookedAt(r.created_at)}{r.consent_accepted ? " · ✓ no-show policy accepted" : ""}
-                  {r.collected_at && <><br />✓ Collected {bookedAt(r.collected_at)}</>}
-                  {r.cancelled_at && <><br />✕ Cancelled {bookedAt(r.cancelled_at)}</>}
-                </p>
-                {r.status !== "cancelled" && (
-                  <div className="a-res__actions">
-                    {/* Collecting is only possible for TODAY's bookings — every date has its own 30 burgers. */}
-                    {r.status === "confirmed" && r.reservation_date === today && (
-                      <button className="a-btn a-btn--go" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "completed")}>✓ MARK COLLECTED</button>
-                    )}
-                    {/* "No show" only makes sense once the day has come. */}
-                    {r.status === "confirmed" && r.reservation_date <= today && (
-                      <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "no_show")}>NO SHOW</button>
-                    )}
-                    {(r.status === "completed" || r.status === "no_show") && (
-                      <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "confirmed")}>UNDO</button>
-                    )}
-                    <button className="a-btn a-btn--danger" disabled={busyId === r.reservation_id} onClick={() => setCancelling(r)}>CANCEL</button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+          renderCards()
         )
+      ) : shownView === "calendar" ? (
+        <section className="a-cal" aria-label="Sales calendar">
+          <div className="a-cal__nav">
+            <button onClick={() => setCalMonth(addMonths(calMonth, -1))} aria-label="Previous month">‹</button>
+            <p>{monthLabel(calMonth).toUpperCase()}</p>
+            <button onClick={() => setCalMonth(addMonths(calMonth, 1))} aria-label="Next month">›</button>
+          </div>
+          <div className="a-cal__tools">
+            <button className="a-btn a-btn--ghost" onClick={() => { setCalMonth(monthStart(today)); pickDay(today); }}>JUMP TO TODAY</button>
+            <button className="a-btn a-btn--ghost" aria-pressed={rangeMode} data-on={rangeMode || undefined} onClick={() => { setRangeMode((v) => !v); setAnchor(null); }}>
+              {rangeMode ? (anchor ? "TAP THE LAST DAY…" : "TAP THE FIRST DAY…") : "SELECT A RANGE"}
+            </button>
+          </div>
+
+          {cal && (
+            <p className="a-cal__totals">
+              <span><b>{cal.totals.burgers}</b> {cal.totals.burgers === 1 ? "burger" : "burgers"} · <b>{cal.totals.bookings}</b> {cal.totals.bookings === 1 ? "booking" : "bookings"} this month</span>
+              {BURGER_KEYS.map((k) => <span key={k} className={`a-cal__tot a-cal__tot--${k}`}>{NAMES[k]} <b>{cal.totals.perBurger[k].sold}</b> / {cal.totals.perBurger[k].capacity}</span>)}
+            </p>
+          )}
+
+          <div className="a-cal__grid" role="grid">
+            {["M", "T", "W", "T", "F", "S", "S"].map((h, i) => <span key={i} className="a-cal__head">{h}</span>)}
+            {monthGrid(calMonth).flat().map((iso, i) => {
+              if (!iso) return <span key={`e${i}`} aria-hidden />;
+              const d = cal?.days.find((x) => x.date === iso);
+              const inRange = iso >= from && iso <= to;
+              const isEdge = iso === from || iso === to;
+              const c = d?.burgers.cheese.sold ?? 0;
+              const n = d?.burgers.nashville.sold ?? 0;
+              const cap = d?.burgers.cheese.limit ?? 30;
+              return (
+                <button
+                  key={iso}
+                  className="a-cal__cell"
+                  data-today={iso === today || undefined}
+                  data-in-range={inRange || undefined}
+                  data-edge={isEdge || undefined}
+                  data-past={iso < today || undefined}
+                  aria-pressed={inRange}
+                  aria-label={`${longDate(iso)}: Super Cheese ${c} sold, Nashville ${n} sold${iso === today ? ", today" : ""}`}
+                  onClick={() => pickDay(iso)}
+                >
+                  <b>{dayOfMonth(iso)}</b>
+                  <span className="a-cal__c" data-full={c >= cap || undefined}>{c}</span>
+                  <span className="a-cal__n" data-full={n >= cap || undefined}>{n}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="a-cal__legend"><i className="k k--c" /> Super Cheese sold <i className="k k--n" /> Nashville sold · out of {cal?.days[0]?.burgers.cheese.limit ?? 30} each per day · underlined = sold out</p>
+
+          {/* the selected day or range, summarised, with the actual bookings underneath */}
+          {data && (
+            <div className="a-cal__sel">
+              <h3>{single ? longDate(from).replace(/ \d{4}$/, "") : `${shortDate(from)} – ${shortDate(to)}`}</h3>
+              <div className="a-cal__selgrid">
+                {BURGER_KEYS.map((k) => {
+                  const sold = data.daily.reduce((n, d) => n + d.burgers[k].sold, 0);
+                  const cap = data.daily.reduce((n, d) => n + d.burgers[k].limit, 0);
+                  return (
+                    <div key={k} className={`a-card a-card--${k}`}>
+                      <p className="a-card__name">{NAMES[k]}</p>
+                      <p className="a-card__sold">{sold}<small> / {cap} SOLD</small></p>
+                      <p className="a-card__left">{cap - sold === 0 ? "SOLD OUT" : `${cap - sold} LEFT`}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              {renderCards()}
+              {list.length === 0 && <p className="admin-note">No bookings for this selection.</p>}
+            </div>
+          )}
+        </section>
       ) : shownView === "log" ? (
         <CollectedLog rows={list} />
       ) : shownView === "burger" ? (

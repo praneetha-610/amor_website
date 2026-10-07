@@ -83,10 +83,15 @@ export const siteConfig = {
   /** Last bookable date, "YYYY-MM-DD". null = bookingStartDate + bookingDaysAhead. */
   bookingEndDate: null as string | null,
   /**
-   * How many calendar dates are reservable, counting today.
-   * 3 = TODAY, TOMORROW, DAY AFTER TOMORROW. Rolls over at 12:00 AM India time (Asia/Kolkata).
+   * How far ahead customers can book, counting today. 30 = today + the next 29 days.
+   * The window moves forward by itself at 12:00 AM India time (Asia/Kolkata) — every new date
+   * appears with a fresh 30/30 and nothing ever needs resetting by hand. (Raise it to open further ahead.)
    */
-  bookingDaysAhead: 3,
+  bookingDaysAhead: 30,
+  /** Dates when reservations are switched off (holidays etc.), "YYYY-MM-DD". They show as CLOSED. */
+  closedDates: [] as string[],
+  /** Weekdays with no reservations, 0 = Sunday … 6 = Saturday. e.g. [2] closes every Tuesday. */
+  closedWeekdays: [] as number[],
   /**
    * Today's burgers stop being reservable after this time (24h, India time) —
    * 30 min before closing so nobody reserves a burger the cafe can no longer serve.

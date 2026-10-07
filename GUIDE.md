@@ -26,12 +26,19 @@ Instagram link ─► Landing page ─► Burger page (or "Claim yours") ─► 
 - **Lost the ticket?** *My reservation* asks only for **name + mobile number** and lists their bookings with the IDs.
   A wrong name and an unknown number give the same generic answer, and repeated guessing is rate-limited.
 
-- Dates offered: **today + the next 2 days** (India time). At 12:00 AM IST the window moves forward by itself.
+- **Dates:** customers can book **any date from today up to 30 days ahead** (India time) using three quick cards (today / tomorrow /
+  day after) or a **month calendar** where every day shows how many are left for the chosen burger. The number of days is
+  `bookingDaysAhead` in `config/site.ts`.
+- **It runs forever on its own.** Every date has its *own* 30 + 30 (the database counts bookings per date). So when the clock passes
+  **12:00 AM IST** nothing needs resetting: "today" moves on, the oldest day drops out of the customer calendar, a brand-new day appears
+  at the far end already at 30/30, and yesterday's bookings stay in the database as your sales history. Pages that are open overnight update themselves.
+- Closing days: add dates to `closedDates` (e.g. `["2026-11-12"]`) or weekdays to `closedWeekdays` (`[2]` = every Tuesday) and those
+  days show as CLOSED and can't be booked.
   Today's card turns to "CLOSED" after 10:00 PM (30 minutes before the 10:30 PM close).
 - **30 per burger per day.** The "X LEFT" number and progress bar are calculated by the server from the
   database every time: `30 − burgers already reserved for that burger and date`. The browser never decides it.
   Pages re-check every 10 seconds, when the phone wakes, and straight after a booking — so the count drops immediately.
-- Counts are shown **per date** (today, tomorrow, day after) on the landing page, the burger cards and the burger pages, and
+- Counts are shown **per date** (next 3 days on the landing page and burger cards; every day in the calendar) and
   update straight after any booking or admin cancel — no reload needed.
 - At 0 left the date shows **SOLD OUT** and can't be selected.
 - **Two people tapping Reserve for the last burger at the same instant:** the database processes them one after
@@ -115,9 +122,13 @@ Wrong password 6 times → locked for 15 minutes.
 **The screen, top to bottom**
 1. **TODAY** — for each burger: sold / 30, a progress bar, how many left, how many already collected.
 2. **Search box** (stays pinned as you scroll) — type a **name**, **mobile number (even just the last 4–5 digits)** or **AF-ID**.
-3. **Chips** (swipe sideways): TODAY · TOMORROW · NEXT 3 DAYS · THIS WEEK · CUSTOM; and ALL / SUPER CHEESE / NASHVILLE. Plus a status filter.
+3. **Chips** (swipe sideways): TODAY · TOMORROW · NEXT 7 DAYS · THIS WEEK · THIS MONTH · CUSTOM; and ALL / SUPER CHEESE / NASHVILLE. Plus a status filter.
 4. **Totals** for the chosen dates: bookings, burgers, to-collect, collected, cancelled.
 5. Three tabs:
+   - **CALENDAR** — a month grid. Every day shows how many **Super Cheese** (yellow) and **Nashville** (red) were sold that day, out of 30
+     (an underlined number = sold out). Use ‹ › to move between months (past months show your history, future months show what's booked ahead).
+     **Tap a day** to see that day's totals and exactly who booked — with Collect / Cancel buttons right there. Tap **SELECT A RANGE**, then the first
+     and last day, to total several days (e.g. a weekend or a whole week). The month's totals are shown above the grid. **JUMP TO TODAY** returns to today.
    - **ALL BOOKINGS** — one card per reservation: big **reservation ID** (tap to copy), **name**, **mobile** (tap to call, or WhatsApp),
      burger × quantity, total ₹, date, when it was booked (IST), and whether they accepted the no-show policy.
    - **WHO BOOKED WHAT** — the kitchen/counter list: per burger, per date, everyone who booked, with ID, name, quantity, mobile.

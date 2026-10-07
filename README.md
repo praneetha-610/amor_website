@@ -82,5 +82,5 @@ supabase/schema.sql   styles/   scripts/qa-booking.mjs
 ## Assumptions to confirm
 
 - Payment is at the cafe (no online payment) — edit `paymentNote`.
-- Customers can reserve TODAY + the next 2 days (`bookingDaysAhead: 3`), rolling over at 12:00 AM India time. Today's burgers stop being reservable at 10:00 PM IST (`todayBookingCutoff`, 30 min before the 10:30 PM close); today's card stays visible, marked CLOSED.
+- Customers can reserve any date from today up to `bookingDaysAhead` (default **30**) days ahead; the window slides forward by itself at 12:00 AM India time, forever. Optional `closedDates` / `closedWeekdays` switch days off. Today's burgers stop being reservable at 10:00 PM IST (`todayBookingCutoff`, 30 min before the 10:30 PM close); today's card stays visible, marked CLOSED.
 - One live reservation per mobile per burger per date (can still book both burgers).

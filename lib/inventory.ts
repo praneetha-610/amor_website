@@ -1,6 +1,6 @@
 import "server-only";
 import { BURGER_KEYS, getBurger, siteConfig, type BurgerKey } from "@/config/site";
-import { bookingWindow, eachDate, isBookableDate, todayIST } from "@/lib/dates";
+import { bookingWindow, clock, eachDate, isBookableDate, todayIST } from "@/lib/dates";
 import { getStore } from "@/lib/db";
 
 export type AvailabilityStatus = "available" | "limited" | "sold_out";
@@ -34,7 +34,7 @@ export function statusFor(remaining: number): AvailabilityStatus {
  * computed here on the server from the database. The browser only displays it.
  */
 export async function getAvailability(from?: string, to?: string): Promise<AvailabilityPayload> {
-  const now = new Date();
+  const now = clock();
   const win = bookingWindow(now);
   const start = from ?? win.start;
   const end = to ?? win.end;
@@ -58,7 +58,7 @@ export async function getAvailability(from?: string, to?: string): Promise<Avail
 }
 
 /**
- * Public payload: every date in the rolling window (today + the next 2, in India time).
+ * Public payload: every date in the rolling booking window (today + the next N-1 days, India time; N = bookingDaysAhead).
  * A date that can't be booked right now (e.g. today after the cutoff) is still listed
  * with bookable:false so customers always see the full 3-day window.
  */

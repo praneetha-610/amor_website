@@ -253,3 +253,5 @@ button.dc[data-selected] { background: var(--ink); color: var(--paper); border-c
 .dc__state { white-space: nowrap; font-size: 0.75rem; letter-spacing: 0.06em; }
 .dc__n { margin-bottom: 2px; }
 .dc__n[data-urgent] { text-decoration-thickness: 2px; text-underline-offset: 6px; }
+
+.live-meter__more { font-size: 0.8125rem; font-weight: 800; letter-spacing: 0.04em; text-underline-offset: 4px; padding: 6px 0; }
