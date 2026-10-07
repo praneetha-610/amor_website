@@ -83,7 +83,7 @@
 .qty { display: flex; align-items: center; gap: 0; }
 .qty button { width: 58px; height: 58px; font-size: 1.6rem; font-weight: 800; background: #fff; border: 2px solid var(--ink); line-height: 1; }
 .qty button:first-child { border-radius: var(--r) 0 0 var(--r); }
-.qty button:nth-of-type(2) { border-radius: 0 var(--r) var(--r) 0; border-left: 0; }
+.qty button:nth-of-type(2) { border-radius: 0 var(--r) var(--r) 0; }
 @media (hover: hover) and (pointer: fine) { .qty button:not(:disabled):hover { background: var(--accent); color: var(--on-accent); } }
 .qty output { min-width: 64px; height: 58px; display: grid; place-items: center; font-size: 1.5rem; font-weight: 900; border-block: 2px solid var(--ink); background: #fff; }
 .qty__note { margin-left: 14px; font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.14em; color: var(--muted); }
