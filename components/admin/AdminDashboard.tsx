@@ -5,6 +5,7 @@ import { BURGER_KEYS, formatPrice, getBurger, reservationTotal, type BurgerKey }
 import { addDays, shortDate, longDate } from "@/lib/dates";
 import type { AdminData } from "@/lib/admin-data";
 import type { Reservation, ReservationStatus } from "@/lib/db/types";
+import { lockScroll } from "@/lib/scroll-lock";
 
 type Preset = "today" | "tomorrow" | "upcoming" | "week" | "custom";
 type View = "list" | "log" | "burger" | "sales";
@@ -32,8 +33,8 @@ function verdict(r: Reservation, today: string): { tone: "go" | "warn" | "stop" 
   if (r.status === "completed") return { tone: "done", text: `ALREADY COLLECTED${r.collected_at ? ` at ${timeOnly(r.collected_at)}` : ""} — don't serve again` };
   if (r.status === "no_show") return { tone: "warn", text: "Marked NO SHOW earlier" };
   if (r.reservation_date === today) return { tone: "go", text: `VALID TODAY — hand over ${r.quantity} × ${NAMES[r.burger_type]}` };
-  if (r.reservation_date > today) return { tone: "warn", text: `NOT FOR TODAY — booked for ${shortDate(r.reservation_date)}` };
-  return { tone: "warn", text: `PAST DATE — booked for ${shortDate(r.reservation_date)}` };
+  if (r.reservation_date > today) return { tone: "warn", text: `NOT FOR TODAY — booked for ${shortDate(r.reservation_date)}. Ask them to come on that day.` };
+  return { tone: "stop", text: `PAST DATE — booked for ${shortDate(r.reservation_date)}. Not valid today.` };
 }
 
 export function AdminDashboard({ today, demo }: { today: string; demo: boolean }) {
@@ -48,7 +49,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<{ kind: "cancel" | "other-day"; r: Reservation } | null>(null);
+  const [cancelling, setCancelling] = useState<Reservation | null>(null);
   const [updatedAt, setUpdatedAt] = useState("");
   const seq = useRef(0);
 
@@ -89,6 +90,15 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
   }, [load]);
 
+  // keep the page still behind the cancel dialog
+  useEffect(() => {
+    if (!cancelling) return;
+    const unlock = lockScroll();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setCancelling(null);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("keydown", onKey); unlock(); };
+  }, [cancelling]);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(""), 3500);
@@ -111,7 +121,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
       setError("Couldn't update that reservation. Please try again.");
     }
     setBusyId(null);
-    setDialog(null);
+    setCancelling(null);
   }
 
   async function logout() {
@@ -272,7 +282,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
                   <span className={`a-burger a-burger--${r.burger_type}`}>{NAMES[r.burger_type]}</span>
                   <b>× {r.quantity}</b> · {formatPrice(reservationTotal(r.burger_type, r.quantity, r.unit_price))} ·
                   <span className={`a-day ${r.reservation_date === today ? "a-day--today" : "a-day--other"}`}>
-                    {r.reservation_date === today ? "TODAY" : r.reservation_date === addDays(today, 1) ? "TOMORROW" : longDate(r.reservation_date).replace(/, \d{4}$/, "")}
+                    {r.reservation_date === today ? "TODAY" : r.reservation_date === addDays(today, 1) ? "TOMORROW" : longDate(r.reservation_date).replace(/ \d{4}$/, "")}
                   </span>
                 </p>
                 <p className="a-res__meta">
@@ -282,15 +292,18 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
                 </p>
                 {r.status !== "cancelled" && (
                   <div className="a-res__actions">
-                    {r.status === "confirmed" && (
-                      <button className="a-btn a-btn--go" disabled={busyId === r.reservation_id}
-                        onClick={() => (r.reservation_date === today ? setRes(r, "completed") : setDialog({ kind: "other-day", r }))}>
-                        {r.reservation_date === today ? "✓ MARK COLLECTED" : "COLLECT ANYWAY"}
-                      </button>
+                    {/* Collecting is only possible for TODAY's bookings — every date has its own 30 burgers. */}
+                    {r.status === "confirmed" && r.reservation_date === today && (
+                      <button className="a-btn a-btn--go" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "completed")}>✓ MARK COLLECTED</button>
                     )}
-                    {r.status === "confirmed" && <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "no_show")}>NO SHOW</button>}
-                    {(r.status === "completed" || r.status === "no_show") && <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "confirmed")}>UNDO</button>}
-                    <button className="a-btn a-btn--danger" disabled={busyId === r.reservation_id} onClick={() => setDialog({ kind: "cancel", r })}>CANCEL</button>
+                    {/* "No show" only makes sense once the day has come. */}
+                    {r.status === "confirmed" && r.reservation_date <= today && (
+                      <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "no_show")}>NO SHOW</button>
+                    )}
+                    {(r.status === "completed" || r.status === "no_show") && (
+                      <button className="a-btn" disabled={busyId === r.reservation_id} onClick={() => setRes(r, "confirmed")}>UNDO</button>
+                    )}
+                    <button className="a-btn a-btn--danger" disabled={busyId === r.reservation_id} onClick={() => setCancelling(r)}>CANCEL</button>
                   </div>
                 )}
               </li>
@@ -307,7 +320,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
               {b.days.length === 0 && <p className="admin-note">Nobody has booked this burger for {rangeLabel}.</p>}
               {b.days.map((d) => (
                 <div key={d.date} className="a-roster__day">
-                  <h4>{longDate(d.date).replace(/, \d{4}$/, "")} <span>{d.qty} / {getBurger(b.burger).dailyLimit}</span></h4>
+                  <h4>{longDate(d.date).replace(/ \d{4}$/, "")} <span>{d.qty} / {getBurger(b.burger).dailyLimit}</span></h4>
                   <ol>
                     {d.rows.map((r) => (
                       <li key={r.reservation_id} data-status={r.status}>
@@ -341,27 +354,19 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
         </table>
       )}
 
-      {/* ADMIN-ONLY CONFIRMATIONS (cancel / collect a booking made for another day) */}
-      {dialog && (
-        <div className="a-modal" role="dialog" aria-modal="true" aria-labelledby="a-dlg-title" onClick={(e) => e.target === e.currentTarget && setDialog(null)}>
+      {/* ADMIN-ONLY CANCEL CONFIRMATION */}
+      {cancelling && (
+        <div className="a-modal" role="dialog" aria-modal="true" aria-labelledby="a-dlg-title" onClick={(e) => e.target === e.currentTarget && setCancelling(null)}>
           <div className="a-modal__box">
-            <h2 id="a-dlg-title">{dialog.kind === "cancel" ? "CANCEL THIS RESERVATION?" : "NOT BOOKED FOR TODAY"}</h2>
-            <p className="a-modal__id">{dialog.r.reservation_id}</p>
-            <p><b>{dialog.r.customer_name}</b> · {pretty(dialog.r.mobile_number)}</p>
-            <p>{NAMES[dialog.r.burger_type]} × {dialog.r.quantity} · booked for <b>{shortDate(dialog.r.reservation_date)}</b></p>
-            {dialog.kind === "cancel" ? (
-              <p className="a-modal__note">The {dialog.r.quantity > 1 ? `${dialog.r.quantity} burgers go` : "burger goes"} straight back into stock and can be booked by someone else. Only an admin can do this. It can&apos;t be undone.</p>
-            ) : (
-              <p className="a-modal__note">This reservation is for another day. Only mark it collected if you&apos;re really handing the burger over now.</p>
-            )}
+            <h2 id="a-dlg-title">CANCEL THIS RESERVATION?</h2>
+            <p className="a-modal__id">{cancelling.reservation_id}</p>
+            <p><b>{cancelling.customer_name}</b> · {pretty(cancelling.mobile_number)}</p>
+            <p>{NAMES[cancelling.burger_type]} × {cancelling.quantity} · {shortDate(cancelling.reservation_date)}</p>
+            <p className="a-modal__note">The {cancelling.quantity > 1 ? `${cancelling.quantity} burgers go` : "burger goes"} straight back into stock and can be booked by someone else. Only an admin can do this. It can&apos;t be undone.</p>
             <div className="a-modal__actions">
-              <button className="a-btn" onClick={() => setDialog(null)} autoFocus>{dialog.kind === "cancel" ? "KEEP IT" : "GO BACK"}</button>
-              <button
-                className={`a-btn ${dialog.kind === "cancel" ? "a-btn--danger-solid" : "a-btn--go"}`}
-                disabled={busyId === dialog.r.reservation_id}
-                onClick={() => setRes(dialog.r, dialog.kind === "cancel" ? "cancelled" : "completed")}
-              >
-                {busyId === dialog.r.reservation_id ? "SAVING…" : dialog.kind === "cancel" ? "YES, CANCEL" : "YES, COLLECTED"}
+              <button className="a-btn" onClick={() => setCancelling(null)} autoFocus>KEEP IT</button>
+              <button className="a-btn a-btn--danger-solid" disabled={busyId === cancelling.reservation_id} onClick={() => setRes(cancelling, "cancelled")}>
+                {busyId === cancelling.reservation_id ? "CANCELLING…" : "YES, CANCEL"}
               </button>
             </div>
           </div>

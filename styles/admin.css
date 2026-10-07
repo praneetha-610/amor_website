@@ -38,7 +38,7 @@
 .a-card__sub { font-size: 0.75rem; opacity: 0.85; }
 
 /* filters */
-.a-searchbar { position: sticky; top: 0; z-index: 30; margin: 18px calc(var(--gutter) * -1) 0; padding: 8px var(--gutter); background: rgba(246, 243, 236, 0.96); backdrop-filter: blur(8px); }
+.a-searchbar { position: sticky; top: 0; z-index: 30; margin: 18px calc(var(--gutter) * -1) 0; padding: 8px var(--gutter); background: rgb(246, 243, 236); }
 .a-filters { margin-top: 4px; display: grid; gap: 10px; }
 .a-search, .a-status select, .a-range input { height: 56px; width: 100%; padding: 0 14px; border: 2px solid var(--ink); border-radius: var(--r); font-size: 1.0625rem; background: #fff; min-width: 0; }
 .a-chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 calc(var(--gutter) * -1); padding: 2px var(--gutter); scrollbar-width: none; } /* one swipeable row */

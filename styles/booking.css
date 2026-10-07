@@ -14,7 +14,7 @@
 /* burger picker */
 .picks { display: grid; gap: 10px; }
 .pick { text-align: left; padding: 18px 20px; border: 2px solid var(--ink); background: #fff; border-radius: var(--r); display: grid; gap: 4px; min-height: 76px; transition: background 0.25s, color 0.25s, transform 0.25s var(--ease); }
-.pick:hover { transform: translateY(-2px); }
+@media (hover: hover) and (pointer: fine) { .pick:hover { transform: translateY(-2px); } }
 .pick__name { font-weight: 900; font-size: 1.1rem; letter-spacing: -0.01em; }
 .pick__meta { font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.08em; opacity: 0.75; }
 .pick--cheese[aria-pressed="true"] { background: var(--yellow); color: var(--ink); }
@@ -31,7 +31,7 @@
   transition: border-color 0.2s, background 0.3s, color 0.3s, transform 0.3s var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
-.date:not(:disabled):hover { border-color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { .date:not(:disabled):hover { border-color: var(--ink); } }
 .date:not(:disabled):active { transform: scale(0.99); }
 .date__rel { grid-area: rel; font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.18em; opacity: 0.7; align-self: end; }
 .date__d { grid-area: d; font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1; align-self: start; }
@@ -54,7 +54,7 @@
   .date__left { margin-top: 8px; text-align: left; font-size: 1.05rem; }
   .date__rows { margin-top: 8px; min-width: 0; }
   .tag { margin-top: auto; }
-  .date:not(:disabled):hover { transform: translateY(-3px); }
+  @media (hover: hover) and (pointer: fine) { .date:not(:disabled):hover { transform: translateY(-3px); } }
 }
 
 /* summary + form */
@@ -84,7 +84,7 @@
 .qty button { width: 58px; height: 58px; font-size: 1.6rem; font-weight: 800; background: #fff; border: 2px solid var(--ink); line-height: 1; }
 .qty button:first-child { border-radius: var(--r) 0 0 var(--r); }
 .qty button:nth-of-type(2) { border-radius: 0 var(--r) var(--r) 0; border-left: 0; }
-.qty button:not(:disabled):hover { background: var(--accent); color: var(--on-accent); }
+@media (hover: hover) and (pointer: fine) { .qty button:not(:disabled):hover { background: var(--accent); color: var(--on-accent); } }
 .qty output { min-width: 64px; height: 58px; display: grid; place-items: center; font-size: 1.5rem; font-weight: 900; border-block: 2px solid var(--ink); background: #fff; }
 .qty__note { margin-left: 14px; font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.14em; color: var(--muted); }
 
@@ -129,7 +129,7 @@
 
 .ticket-actions { display: grid; gap: 10px; }
 .theme-nashville .ticket-actions .btn--outline { border-color: #fff; color: #fff; }
-.theme-nashville .ticket-actions .btn--outline:hover { background: #fff; color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { .theme-nashville .ticket-actions .btn--outline:hover { background: #fff; color: var(--ink); } }
 .theme-nashville .ticket-actions .btn--ghost { color: #fff; }
 
 .ticket__where { display: grid; gap: 8px; padding-top: 12px; border-top: 2px solid currentColor; }
@@ -207,7 +207,7 @@
 .found { display: grid; gap: 12px; margin-top: 28px; }
 .found__title { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.2em; }
 .found__card { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 16px; background: #fff; border: 2px solid var(--ink); border-radius: var(--r); text-decoration: none; transition: transform 0.25s var(--ease); }
-.found__card:hover { transform: translateY(-2px); }
+@media (hover: hover) and (pointer: fine) { .found__card:hover { transform: translateY(-2px); } }
 .found__card[data-status="cancelled"] { opacity: 0.55; }
 .found__burger { font-weight: 900; letter-spacing: -0.01em; text-transform: uppercase; }
 .found__meta { grid-column: 1; font-size: 0.875rem; color: var(--muted); }
@@ -233,3 +233,21 @@
 .confirmed__title { font-size: clamp(2.6rem, 13vw, 4.2rem); }
 .confirmed__head { padding-top: 0; }
 .confirmed__tip { padding: 10px 12px; font-size: 0.875rem; }
+
+/* pop-up buttons: explicit, readable hover/active states in BOTH themes (mouse only; taps never stick) */
+.confirmed .ticket-actions .btn--outline { background: transparent; border-color: currentColor; color: inherit; }
+.confirmed .ticket-actions .btn--ghost { background: transparent; color: inherit; }
+@media (hover: hover) and (pointer: fine) {
+  .theme-cheese.confirmed .ticket-actions .btn--outline:hover { background: var(--ink); color: var(--yellow); border-color: var(--ink); }
+  .theme-nashville.confirmed .ticket-actions .btn--outline:hover { background: #fff; color: var(--ink); border-color: #fff; }
+  .confirmed .ticket-actions .btn--ghost:hover { opacity: 0.7; }
+  .confirmed .ticket-actions .btn--whatsapp:hover { background: #0e7a3f; color: #fff; }
+}
+.confirmed .ticket-actions .btn:active { transform: scale(0.98); }
+
+/* My reservation: breathing room + a clearer result card (ID first, then what/when) */
+.form--lookup { margin-top: 28px; }
+.found__card { grid-template-columns: 1fr; gap: 6px; }
+.found__id { order: -1; grid-column: 1; grid-row: auto; text-align: left; font-size: 1.35rem; letter-spacing: 0.06em; }
+.found__burger { font-size: 0.9375rem; }
+.found__meta { grid-column: 1; }

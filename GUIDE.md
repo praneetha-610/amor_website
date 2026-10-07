@@ -31,6 +31,8 @@ Instagram link ─► Landing page ─► Burger page (or "Claim yours") ─► 
 - **30 per burger per day.** The "X LEFT" number and progress bar are calculated by the server from the
   database every time: `30 − burgers already reserved for that burger and date`. The browser never decides it.
   Pages re-check every 10 seconds, when the phone wakes, and straight after a booking — so the count drops immediately.
+- Counts are shown **per date** (today, tomorrow, day after) on the landing page, the burger cards and the burger pages, and
+  update straight after any booking or admin cancel — no reload needed.
 - At 0 left the date shows **SOLD OUT** and can't be selected.
 - **Two people tapping Reserve for the last burger at the same instant:** the database processes them one after
   the other (a lock per burger+date). One gets it; the other sees "SORRY — THAT LAST BURGER WAS JUST CLAIMED."
@@ -129,7 +131,7 @@ Wrong password 6 times → locked for 15 minutes.
 3. Read the coloured banner on the card:
    - 🟢 **VALID TODAY — hand over 2 × NASHVILLE** → tap **✓ MARK COLLECTED**. The ID is struck through and the time is recorded.
    - ⚪ **ALREADY COLLECTED at 2:41 PM — don't serve again** → someone already used this ID (or a copy of the screenshot).
-   - 🟡 **NOT FOR TODAY — booked for OCT 9** → don't serve (the button says COLLECT ANYWAY and asks you to confirm).
+   - 🟡 **NOT FOR TODAY — booked for OCT 9. Ask them to come on that day.** → don't serve. Each date has its own 30 burgers, so a booking can only be handed over on its own date (the system won't let you mark it collected early; you can only cancel it).
    - 🔴 **CANCELLED** → don't serve.
 4. Clear the search (✕) to go back to the day view.
 

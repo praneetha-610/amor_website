@@ -4,7 +4,7 @@ import { BURGER_KEYS, formatPrice, getBurger, siteConfig, siteDescription } from
 import { getPublicAvailabilitySafe } from "@/lib/inventory";
 import { BurgerArt } from "@/components/BurgerArt";
 import { Reveal } from "@/components/Reveal";
-import { LiveChip, TodaysDrop } from "@/components/TodaysDrop";
+import { CardCounts, TodaysDrop } from "@/components/TodaysDrop";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +56,7 @@ export default async function LandingPage() {
             <p className="hero__support">
               Made in limited quantities. Reserved before you arrive. Served only to those who claimed theirs.
             </p>
-            <div className="hero__ctas">
+            <div className="hero__ctas" data-cta-hide>
               <Link href="/reserve" className="btn btn--accent btn--lg">
                 CLAIM YOUR BURGER <span aria-hidden className="arrow">→</span>
               </Link>
@@ -103,11 +103,11 @@ export default async function LandingPage() {
                     <Link href={b.path} className="dcard__link" aria-label={b.cta.view} tabIndex={-1} />
                     <div className="dcard__top">
                       <span className="dcard__num">BURGER 0{i + 1}</span>
-                      <LiveChip burger={k} initial={availability} />
                     </div>
                     <BurgerArt burger={k} className="dcard__art" />
                     <h3 className="dcard__name">{b.name}</h3>
                     <p className="dcard__blurb">{b.cardBlurb}</p>
+                    <CardCounts burger={k} initial={availability} tone={k === "nashville" ? "dark" : "light"} />
                     <ul className="dcard__facts">
                       <li>Only {b.dailyLimit} available daily</li>
                       <li>{formatPrice(b.price)}</li>
@@ -187,7 +187,7 @@ export default async function LandingPage() {
       </section>
 
       {/* 9 · Final CTA */}
-      <section className="final" aria-labelledby="final-title">
+      <section className="final" aria-labelledby="final-title" data-cta-hide>
         <div className="wrap final__inner">
           <Reveal>
             <p className="eyebrow eyebrow--light">READY TO CLAIM YOURS?</p>

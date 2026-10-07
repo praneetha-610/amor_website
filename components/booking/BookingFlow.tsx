@@ -200,7 +200,6 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
     lock.current = false;
     setPhase("idle");
     void refreshAvailability();
-    setNudge({ to: "dates", n: Date.now() });
   }
 
   function backToDates() {

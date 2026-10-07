@@ -15,10 +15,15 @@ export function BottomCta() {
 
   useEffect(() => {
     setHide(false);
-    const el = document.getElementById("claim");
-    if (!el || !("IntersectionObserver" in window)) return;
-    const io = new IntersectionObserver(([e]) => setHide(e.isIntersecting), { threshold: 0.15 });
-    io.observe(el);
+    // hide while any element marked data-cta-hide (hero buttons, booking form, final CTA, footer) is on screen
+    const els = [...document.querySelectorAll("[data-cta-hide]"), ...(document.getElementById("claim") ? [document.getElementById("claim")!] : [])];
+    if (!els.length || !("IntersectionObserver" in window)) return;
+    const visible = new Set<Element>();
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) (e.isIntersecting ? visible.add(e.target) : visible.delete(e.target));
+      setHide(visible.size > 0);
+    }, { threshold: 0 });
+    els.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, [pathname]);
 

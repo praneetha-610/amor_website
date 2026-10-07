@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { siteConfig } from "@/config/site";
+import { lockScroll } from "@/lib/scroll-lock";
 
 const LINKS = [
   { href: "/#drops", label: "THE DROPS" },
@@ -18,13 +19,13 @@ export function Nav() {
   useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
     if (!open) return;
+    const unlock = lockScroll();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      unlock();
     };
   }, [open]);
 

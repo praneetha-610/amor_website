@@ -5,7 +5,7 @@ import { BottomMarquee } from "./BottomMarquee";
 export function Footer() {
   const { location, phoneNumber, phoneTel, instagramURL, instagramHandle } = siteConfig;
   return (
-    <footer className="footer">
+    <footer className="footer" data-cta-hide>
       <div className="wrap footer__grid">
         <div>
           <p className="footer__logo">{siteConfig.brandName}</p>

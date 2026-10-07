@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { lockScroll } from "@/lib/scroll-lock";
 import { getBurger, siteConfig } from "@/config/site";
 import { monthDay } from "@/lib/dates";
 import { ConfirmationActions } from "../ConfirmationActions";
@@ -18,7 +19,7 @@ export function ConfirmedModal({ ticket, url, onClose }: { ticket: TicketData; u
 
   useEffect(() => {
     const prevFocus = document.activeElement as HTMLElement | null;
-    document.body.style.overflow = "hidden";
+    const unlock = lockScroll();
     boxRef.current?.scrollTo({ top: 0 });
     closeRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
@@ -35,8 +36,8 @@ export function ConfirmedModal({ ticket, url, onClose }: { ticket: TicketData; u
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-      prevFocus?.focus?.();
+      unlock();
+      prevFocus?.focus?.({ preventScroll: true });
     };
   }, [onClose]);
 

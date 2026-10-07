@@ -181,15 +181,30 @@ console.log("\nStaff check-in: search all dates, collected timestamps");
   ok(s3.reservations.some((r) => r.reservation_id === id), "Searching by name finds it");
   let row = s1.reservations.find((r) => r.reservation_id === id);
   ok(row.collected_at === null, "Not collected yet (collected_at empty)");
-  const before = (await avail(DATE2)).burgers.cheese.remaining;
-  const done = await (await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "completed" }) })).json();
-  ok(done.reservation.status === "completed" && !!done.reservation.collected_at, "Marking collected stamps collected_at");
-  ok((await avail(DATE2)).burgers.cheese.remaining === before, "Collecting does NOT free the burger (it was handed over)");
-  const undo = await (await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "confirmed" }) })).json();
-  ok(undo.reservation.collected_at === null, "UNDO clears collected_at");
-  await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "completed" }) });
-  const lookup = await fetch(`${BASE}/api/reservations/lookup`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": ip() }, body: JSON.stringify({ name: "Checkin Person", mobile: m4 }) }).then((r) => r.json());
-  ok(lookup.reservations[0].status === "completed", "The customer's own lookup now shows COLLECTED");
+  // A booking for ANOTHER date can't be collected today (each date has its own 30 burgers).
+  const future = await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "completed" }) });
+  ok(future.status === 409, "Collecting a booking made for another day is refused (409)");
+  const stillConfirmed = (await (await fetch(`${BASE}/api/admin/data?from=${DATE2}&to=${DATE2}&q=${id}`, { headers: H })).json()).reservations[0];
+  ok(stillConfirmed.status === "confirmed" && stillConfirmed.collected_at === null, "…and it stays confirmed, untouched");
+
+  // Collect flow: needs a booking for TODAY, which is only possible before the 10 PM cutoff.
+  const todayDay = (await (await fetch(`${BASE}/api/availability`)).json()).days[0];
+  if (todayDay.bookable) {
+    const mt = mobile();
+    const tb = await book({ burger: "cheese", date: dayOffset(0), mobile: mt, name: "Today Collector", quantity: 1 });
+    const tid = tb.body.reservationId;
+    const beforeT = (await avail(dayOffset(0))).burgers.cheese.remaining;
+    const done = await (await fetch(`${BASE}/api/admin/reservations/${tid}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "completed" }) })).json();
+    ok(done.reservation?.status === "completed" && !!done.reservation.collected_at, "Marking TODAY's booking collected stamps collected_at");
+    ok((await avail(dayOffset(0))).burgers.cheese.remaining === beforeT, "Collecting does NOT free the burger (it was handed over)");
+    const undo = await (await fetch(`${BASE}/api/admin/reservations/${tid}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "confirmed" }) })).json();
+    ok(undo.reservation.collected_at === null, "UNDO clears collected_at");
+    await fetch(`${BASE}/api/admin/reservations/${tid}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "completed" }) });
+    const lk = await fetch(`${BASE}/api/reservations/lookup`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": ip() }, body: JSON.stringify({ name: "Today Collector", mobile: mt }) }).then((r) => r.json());
+    ok(lk.reservations[0].status === "completed", "The customer's own lookup now shows COLLECTED");
+  } else {
+    console.log("  ·  (today is past the booking cutoff — collect-today checks skipped)");
+  }
   const cx = await (await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "cancelled" }) })).json();
   ok(cx.reservation.status === "cancelled" && !!cx.reservation.cancelled_at && cx.reservation.collected_at === null, "Cancelling stamps cancelled_at");
 }

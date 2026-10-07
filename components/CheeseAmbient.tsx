@@ -20,11 +20,9 @@ export function CheeseAmbient() {
   return (
     <div className="cheese-amb" aria-hidden>
       <div className="cheese-amb__glow" />
-      <div className="cheese-amb__drips">
-        {DRIPS.map((d, i) => (
-          <i key={i} style={{ "--x": `${d.x}%`, "--w": `${d.w}px`, "--h": `${d.h}px`, "--t": `${d.t}s`, "--delay": `${d.d}s` } as React.CSSProperties} />
-        ))}
-      </div>
+      {DRIPS.map((d, i) => (
+        <i key={i} style={{ "--x": `${d.x}%`, "--w": `${d.w}px`, "--h": `${d.h}px`, "--t": `${d.t}s`, "--delay": `${d.d}s` } as React.CSSProperties} />
+      ))}
     </div>
   );
 }

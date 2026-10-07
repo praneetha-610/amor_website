@@ -76,7 +76,7 @@ export function LookupForm() {
             <Link key={r.reservationId} href={r.url} className="found__card" data-status={r.status}>
               <span className="found__burger">{r.burgerName} × {r.quantity}</span>
               <span className="found__id">{r.reservationId}</span>
-              <span className="found__meta">{longDate(r.date).replace(/, \d{4}$/, "")} · {formatPrice(r.total)} · <span className="found__status" data-status={r.status}>{LABEL[r.status]}</span></span>
+              <span className="found__meta">{longDate(r.date).replace(/ \d{4}$/, "")} · {formatPrice(r.total)} · <span className="found__status" data-status={r.status}>{LABEL[r.status]}</span></span>
             </Link>
           ))}
         </section>

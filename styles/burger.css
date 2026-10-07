@@ -74,7 +74,7 @@
 @media (min-width: 1000px) {
   .ing-rail { max-width: var(--max); margin-inline: auto; display: grid; grid-template-columns: repeat(3, 1fr); overflow: visible; padding-bottom: 0; }
   .ing { flex: none; min-height: 280px; }
-  .ing:hover { transform: translateY(-6px) !important; }
+  @media (hover: hover) and (pointer: fine) { .ing:hover { transform: translateY(-6px) !important; } }
 }
 
 /* price */
@@ -91,62 +91,39 @@
 .bp-other { padding: 48px 0 64px; border-top: 1px solid var(--line); }
 .bp-other__inner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; }
 .bp-other .eyebrow { margin: 0; }
-.bp-other__link { font-size: clamp(1.4rem, 4vw, 2.2rem); font-weight: 900; letter-spacing: -0.03em; text-decoration: none; text-transform: uppercase; }
-.bp-other__link:hover { text-decoration: underline; text-underline-offset: 6px; }
+.bp-other__link { display: inline-flex; align-items: baseline; gap: 0.35em; font-size: clamp(1.4rem, 4vw, 2.2rem); font-weight: 900; letter-spacing: -0.03em; text-decoration: none; text-transform: uppercase; }
+@media (hover: hover) and (pointer: fine) { .bp-other__link:hover { text-decoration: underline; text-underline-offset: 6px; } }
 
-/* ═════════════ SUPER CHEESE — ambient molten-cheese glow (hero top edge) ═════════════ */
+/* ═════════════ AMBIENT HERO EFFECTS (cheese glow / flames) ═════════════
+   Performance rules (this is what keeps phone + Safari scrolling smooth):
+   • NO filter: blur, NO mix-blend-mode, NO mask — soft edges come from the gradients themselves.
+   • Only transform + opacity are animated, on a handful of small elements.
+   • Behind the content (z-index 0), never intercept taps, static for prefers-reduced-motion. */
+
+/* SUPER CHEESE — slow amber melt along the hero's top edge */
 .theme-cheese .bp-hero > .wrap { position: relative; z-index: 1; }
-.cheese-amb {
-  position: absolute; z-index: 0; top: 0; left: 0; right: 0; height: clamp(110px, 24vw, 250px); overflow: hidden; pointer-events: none;
-  -webkit-mask-image: linear-gradient(#000 40%, transparent); mask-image: linear-gradient(#000 40%, transparent);
-}
-.cheese-amb__glow { position: absolute; inset: 0 0 auto 0; height: 80%; background: linear-gradient(to bottom, rgba(255, 150, 0, 0.5), rgba(255, 176, 0, 0.18) 60%, transparent); animation: glow 7s ease-in-out infinite alternate; }
-.cheese-amb__drips { position: absolute; inset: 0; filter: blur(7px); } /* softens the whole group */
+.cheese-amb { position: absolute; z-index: 0; top: 0; left: 0; right: 0; height: clamp(110px, 24vw, 250px); overflow: hidden; pointer-events: none; contain: strict; }
+.cheese-amb__glow { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(255, 150, 0, 0.5), rgba(255, 170, 0, 0.16) 55%, rgba(255, 208, 0, 0)); }
 .cheese-amb i {
-  position: absolute; top: -12%; left: var(--x); width: var(--w); height: var(--h); margin-left: calc(var(--w) / -2);
-  border-radius: 0 0 999px 999px; transform-origin: 50% 0; will-change: transform;
-  background: linear-gradient(to bottom, rgba(255, 140, 0, 0.7), rgba(255, 168, 0, 0.62) 55%, rgba(255, 200, 40, 0.5));
+  position: absolute; top: -8%; left: var(--x); width: calc(var(--w) * 1.5); height: var(--h); margin-left: calc(var(--w) * -0.75);
+  background: radial-gradient(ellipse 50% 100% at 50% 0%, rgba(255, 138, 0, 0.7) 0%, rgba(255, 168, 0, 0.45) 45%, rgba(255, 190, 0, 0) 100%);
+  transform-origin: 50% 0; will-change: transform;
   animation: cheese-sway var(--t) ease-in-out var(--delay) infinite alternate;
 }
-/* slow, thick, elastic: lengthens, then draws back up */
-@keyframes cheese-sway {
-  0% { transform: scaleY(0.62) scaleX(1.06); }
-  55% { transform: scaleY(1.04) scaleX(0.94); }
-  100% { transform: scaleY(0.82) scaleX(1); }
-}
-@media (max-width: 640px) {
-  .cheese-amb { opacity: 0.8; }
-  .cheese-amb i:nth-of-type(n + 6) { display: none; }
-  .cheese-amb__drips { filter: blur(5px); }
-}
-@media (prefers-reduced-motion: reduce) { .cheese-amb i, .cheese-amb__glow { animation: none; } }
+@keyframes cheese-sway { 0% { transform: scaleY(0.6) scaleX(1.05); } 55% { transform: scaleY(1.05) scaleX(0.94); } 100% { transform: scaleY(0.82) scaleX(1); } }
+@media (max-width: 640px) { .cheese-amb i:nth-of-type(n + 6) { display: none; } }
+@media (prefers-reduced-motion: reduce) { .cheese-amb i { animation: none; } }
 
-/* ═════════════ NASHVILLE — ambient flame glow (hero top edge) ═════════════ */
+/* NASHVILLE — slow ember glow along the hero's top edge */
 .theme-nashville .bp-hero > .wrap { position: relative; z-index: 1; }
-.flames {
-  position: absolute; z-index: 0; top: 0; left: 0; right: 0; height: clamp(110px, 24vw, 250px); overflow: hidden; pointer-events: none;
-  mix-blend-mode: screen; opacity: 0.8;
-  -webkit-mask-image: linear-gradient(#000 35%, transparent); mask-image: linear-gradient(#000 35%, transparent);
-}
-.flames__glow { position: absolute; inset: 0 0 auto 0; height: 75%; background: linear-gradient(to bottom, rgba(200, 16, 46, 0.6), rgba(255, 90, 31, 0.2) 60%, transparent); animation: glow 6s ease-in-out infinite alternate; }
-.flames__tongues { position: absolute; inset: 0; filter: blur(9px); } /* blur the group so it softens the clipped shapes */
+.flames { position: absolute; z-index: 0; top: 0; left: 0; right: 0; height: clamp(110px, 24vw, 250px); overflow: hidden; pointer-events: none; contain: strict; }
+.flames__glow { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(200, 16, 46, 0.55), rgba(255, 90, 31, 0.16) 55%, rgba(200, 16, 46, 0)); }
 .flames i {
-  position: absolute; top: -16%; left: var(--x); width: calc(var(--w) * 0.62); height: var(--h); margin-left: calc(var(--w) * -0.31);
-  /* pointed, licking tongue (tip downward) — softened by the blur so it reads as heat, not a shape */
-  clip-path: polygon(0 0, 100% 0, 92% 30%, 78% 52%, 64% 76%, 50% 100%, 36% 72%, 22% 50%, 8% 28%);
-  background: linear-gradient(to bottom, rgba(255, 190, 60, 0.95) 0, rgba(255, 96, 31, 0.85) 38%, rgba(200, 16, 46, 0.6) 72%, rgba(200, 16, 46, 0.15) 100%);
-  transform-origin: 50% 0; opacity: 0.8; will-change: transform, opacity;
+  position: absolute; top: -8%; left: var(--x); width: calc(var(--w) * 1.5); height: var(--h); margin-left: calc(var(--w) * -0.75);
+  background: radial-gradient(ellipse 50% 100% at 50% 0%, rgba(255, 178, 46, 0.85) 0%, rgba(255, 92, 31, 0.55) 40%, rgba(200, 16, 46, 0.22) 70%, rgba(200, 16, 46, 0) 100%);
+  transform-origin: 50% 0; will-change: transform, opacity;
   animation: lick var(--t) ease-in-out var(--delay) infinite alternate;
 }
-@keyframes lick {
-  0% { transform: scaleY(0.7) skewX(-3deg); opacity: 0.5; }
-  50% { transform: scaleY(1.05) skewX(2deg); opacity: 0.92; }
-  100% { transform: scaleY(0.85) scaleX(0.92) skewX(-2deg); opacity: 0.65; }
-}
-@keyframes glow { from { opacity: 0.65; } to { opacity: 1; } }
-@media (max-width: 640px) {
-  .flames { opacity: 0.6; } /* gentler on phones */
-  .flames i:nth-of-type(n + 6) { display: none; }
-  .flames__tongues { filter: blur(6px); }
-}
-@media (prefers-reduced-motion: reduce) { .flames i, .flames__glow { animation: none; } }
+@keyframes lick { 0% { transform: scaleY(0.7); opacity: 0.55; } 50% { transform: scaleY(1.05); opacity: 0.95; } 100% { transform: scaleY(0.85); opacity: 0.7; } }
+@media (max-width: 640px) { .flames { opacity: 0.85; } .flames i:nth-of-type(n + 6) { display: none; } }
+@media (prefers-reduced-motion: reduce) { .flames i { animation: none; } }

@@ -19,14 +19,12 @@ export function Flames() {
   return (
     <div className="flames" aria-hidden>
       <div className="flames__glow" />
-      <div className="flames__tongues">
-        {TONGUES.map((f, i) => (
+      {TONGUES.map((f, i) => (
         <i
           key={i}
           style={{ "--x": `${f.x}%`, "--w": `${f.w}px`, "--h": `${f.h}px`, "--t": `${f.t}s`, "--delay": `${f.d}s` } as React.CSSProperties}
         />
       ))}
-      </div>
     </div>
   );
 }

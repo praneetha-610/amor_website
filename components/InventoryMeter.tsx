@@ -6,6 +6,7 @@ import type { BurgerKey } from "@/config/site";
 import { relativeLabel, shortDate } from "@/lib/dates";
 import { inventoryCopy } from "./inventory-copy";
 import { firstBookableDay } from "./availability-utils";
+import { DayCounts } from "./DayCounts";
 import { useAvailability } from "./useAvailability";
 
 /** Presentational meter: big count, animated bar, honest scarcity copy. */
@@ -60,7 +61,10 @@ export function InventoryMeter({
   );
 }
 
-/** Live (polling) meter for the next bookable day. Numbers come from the database via /api/availability. */
+/**
+ * Live meter for the burger page: pick a date (each shows its own count), and the big meter below
+ * shows that date. Numbers come from the database via /api/availability and refresh on their own.
+ */
 export function LiveInventory({
   burger,
   initial,
@@ -71,8 +75,13 @@ export function LiveInventory({
   size?: "lg" | "sm";
 }) {
   const data = useAvailability(initial);
-  const day = firstBookableDay(data);
-  if (!day) {
+  const first = firstBookableDay(data);
+  const [picked, setPicked] = useState<string | null>(null);
+
+  // default to the first open date; keep the user's pick unless that date has rolled out of the window
+  const active = data.days.find((d) => d.date === picked && d.bookable) ?? first;
+
+  if (!active) {
     return (
       <div className="meter meter--lg">
         <p className="meter__count"><span className="meter__big">CLOSED</span></p>
@@ -80,8 +89,13 @@ export function LiveInventory({
       </div>
     );
   }
-  const b = day.burgers[burger];
+  const b = active.burgers[burger];
   const when =
-    day.date === data.today ? "TODAY" : `${relativeLabel(day.date, data.today)} · ${shortDate(day.date)}`;
-  return <InventoryMeter remaining={b.remaining} limit={b.limit} caption={when} size={size} />;
+    active.date === data.today ? "TODAY" : `${relativeLabel(active.date, data.today)} · ${shortDate(active.date)}`;
+  return (
+    <div className="live-meter">
+      <DayCounts burger={burger} data={data} selected={active.date} onSelect={setPicked} />
+      <InventoryMeter remaining={b.remaining} limit={b.limit} caption={when} size={size} />
+    </div>
+  );
 }

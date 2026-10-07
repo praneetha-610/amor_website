@@ -39,7 +39,7 @@ export async function BurgerPage({ burger }: { burger: BurgerKey }) {
               ))}
             </p>
             <p className="bp-desc">{cfg.description}</p>
-            <div className="bp-hero__ctas">
+            <div className="bp-hero__ctas" data-cta-hide>
               <a href="#claim" className="btn btn--accent btn--lg">
                 {cfg.bookingTitle} <span aria-hidden className="arrow">→</span>
               </a>
