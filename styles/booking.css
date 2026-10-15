@@ -12,8 +12,8 @@
 @keyframes step-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
 /* burger picker */
-.picks { display: grid; gap: 10px; }
-.pick { text-align: left; padding: 18px 20px; border: 2px solid var(--ink); background: #fff; border-radius: var(--r); display: grid; gap: 4px; min-height: 76px; transition: background 0.25s, color 0.25s, transform 0.25s var(--ease); }
+.picks { display: grid; gap: 10px; grid-auto-rows: 1fr; }
+.pick { text-align: left; padding: 18px 20px; border: 2px solid var(--ink); background: #fff; border-radius: var(--r); display: grid; gap: 4px; align-content: center; min-height: 76px; transition: background 0.25s, color 0.25s, transform 0.25s var(--ease); }
 @media (hover: hover) and (pointer: fine) { .pick:hover { transform: translateY(-2px); } }
 .pick__name { font-weight: 900; font-size: 1.1rem; letter-spacing: -0.01em; }
 .pick__meta { font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.08em; opacity: 0.75; }
