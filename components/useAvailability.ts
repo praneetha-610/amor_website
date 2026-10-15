@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { BurgerKey } from "@/config/site";
 import type { AvailabilityPayload } from "@/lib/inventory";
 import { statusFor } from "./inventory-copy";
@@ -47,7 +48,7 @@ export function applyLocalBooking(burger: BurgerKey, date: string, quantity: num
       if (d.date !== date) return d;
       const b = d.burgers[burger];
       const remaining = Math.max(0, b.remaining - quantity);
-      return { ...d, burgers: { ...d.burgers, [burger]: { ...b, claimed: b.limit - remaining, remaining, status: statusFor(remaining) } } };
+      return { ...d, burgers: { ...d.burgers, [burger]: { ...b, claimed: b.limit - remaining, remaining, status: statusFor(remaining, b.limit) } } };
     }),
   };
   emit();
@@ -70,6 +71,11 @@ function subscribe(cb: () => void) {
   };
 }
 
+/** The daily limits as seen in a payload, e.g. "30|30" — used to notice when the owner changes them. */
+const limitSignature = (p: AvailabilityPayload) =>
+  p.days[0] ? `${p.days[0].burgers.cheese.limit}|${p.days[0].burgers.nashville.limit}` : "";
+let refreshedFor = "";
+
 export function useAvailability(initial: AvailabilityPayload): AvailabilityPayload {
   if (initial !== lastInitial) {
     lastInitial = initial;
@@ -80,6 +86,19 @@ export function useAvailability(initial: AvailabilityPayload): AvailabilityPaylo
     () => current ?? initial,
     () => initial,
   );
+  // When the owner changes the daily limit, re-render the server-written wording too
+  // ("30 BURGERS / DAY", page titles…) without losing what the customer typed.
+  const router = useRouter();
+  const seen = useRef(limitSignature(initial));
+  const sig = limitSignature(data);
+  useEffect(() => {
+    if (!sig || sig === seen.current) return;
+    seen.current = sig;
+    if (refreshedFor === sig) return; // another component already triggered it
+    refreshedFor = sig;
+    router.refresh();
+  }, [sig, router]);
+
   useEffect(() => {
     // Phones restore pages from the back/forward cache with stale numbers — always re-check.
     const refresh = () => void refreshAvailability();

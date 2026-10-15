@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { BURGER_KEYS, formatPrice, getBurger, siteConfig, siteDescription } from "@/config/site";
+import { BURGER_KEYS, formatPrice, getBurger, siteConfig, siteDescriptionFor } from "@/config/site";
+import { ofEachPhrase, onlyPhrase } from "@/lib/capacity";
+import { getHeadlineLimits } from "@/lib/capacity-server";
 import { getPublicAvailabilitySafe } from "@/lib/inventory";
 import { BurgerArt } from "@/components/BurgerArt";
 import { Reveal } from "@/components/Reveal";
@@ -8,14 +10,13 @@ import { CardCounts, TodaysDrop } from "@/components/TodaysDrop";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: { absolute: siteConfig.siteTitle },
-  description: siteDescription,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: { absolute: siteConfig.siteTitle }, description: siteDescriptionFor(await getHeadlineLimits()) };
+}
 
 export default async function LandingPage() {
   const availability = await getPublicAvailabilitySafe();
-  const L = siteConfig.dailyLimit;
+  const h = await getHeadlineLimits(); // today's limit per burger — admin-editable, so copy never goes stale
   const cheese = getBurger("cheese");
   const nashville = getBurger("nashville");
 
@@ -38,7 +39,7 @@ export default async function LandingPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* 1–3 · AMOR FATI / THE NEXT DROP IS HERE / 30 ONLY. EVERY DAY. */}
+      {/* 1–3 · AMOR FATI / THE NEXT DROP IS HERE / "N ONLY. EVERY DAY." */}
       <section className="hero" aria-labelledby="hero-title">
         <div className="wrap hero__grid">
           <div className="hero__copy">
@@ -50,7 +51,7 @@ export default async function LandingPage() {
             </h1>
             <p className="hero__sub">
               Two burgers.<br />
-              {L} of each.<br />
+              {ofEachPhrase(h)}<br />
               Every single day.
             </p>
             <p className="hero__support">
@@ -80,11 +81,11 @@ export default async function LandingPage() {
       <div className="marquee" aria-hidden>
         <div className="marquee__track">
           {Array.from({ length: 8 }).map((_, i) => (
-            <span key={i}>{L} ONLY. EVERY DAY. <em>✦</em></span>
+            <span key={i}>{onlyPhrase(h)} <em>✦</em></span>
           ))}
         </div>
       </div>
-      <p className="sr-only">{L} only. Every day. Two burgers. One limited drop.</p>
+      <p className="sr-only">{onlyPhrase(h)} Two burgers. One limited drop.</p>
 
       {/* 4–5 · SUPER CHEESE vs NASHVILLE · Explore both */}
       <section id="drops" className="section drops" aria-labelledby="drops-title">
@@ -109,7 +110,7 @@ export default async function LandingPage() {
                     <p className="dcard__blurb">{b.cardBlurb}</p>
                     <CardCounts burger={k} initial={availability} tone={k === "nashville" ? "dark" : "light"} />
                     <ul className="dcard__facts">
-                      <li>Only {b.dailyLimit} available daily</li>
+                      <li>Only {h[k]} available daily</li>
                       <li>{formatPrice(b.price)}</li>
                       <li>Reserve yours</li>
                     </ul>
@@ -129,16 +130,16 @@ export default async function LandingPage() {
         <div className="wrap limited__grid">
           <Reveal>
             <p className="eyebrow">LIMITED BY DESIGN.</p>
-            <h2 id="limited-title" className="limited__sum" aria-label={`${L} plus ${L}`}>
-              <span className="limited__a">{L}</span>
+            <h2 id="limited-title" className="limited__sum" aria-label={`${h.cheese} plus ${h.nashville}`}>
+              <span className="limited__a">{h.cheese}</span>
               <span className="limited__plus">+</span>
-              <span className="limited__b">{L}</span>
+              <span className="limited__b">{h.nashville}</span>
             </h2>
           </Reveal>
           <Reveal delay={120}>
-            <p className="display-md">{L * 2} BURGERS.<br />EVERY DAY.</p>
+            <p className="display-md">{h.total} BURGERS.<br />EVERY DAY.</p>
             <p className="lede">
-              We make only {L} {cheese.displayName} Burgers and {L} {nashville.displayName} Fried Chicken Burgers each day. Once
+              We make only {h.cheese} {cheese.displayName} Burgers and {h.nashville} {nashville.displayName} Fried Chicken Burgers each day. Once
               they&apos;re gone, they&apos;re gone.
             </p>
           </Reveal>
@@ -192,7 +193,7 @@ export default async function LandingPage() {
           <Reveal>
             <p className="eyebrow eyebrow--light">READY TO CLAIM YOURS?</p>
             <h2 id="final-title" className="final__big">
-              {L} + {L}<br />THAT&apos;S IT.
+              {h.cheese} + {h.nashville}<br />THAT&apos;S IT.
             </h2>
             <p className="final__text">Once today&apos;s burgers are claimed, the next drop is tomorrow.</p>
             <div className="final__ctas">

@@ -3,9 +3,10 @@
 1. [How the website works](#1-how-the-website-works)
 2. [Go live: Supabase + Vercel, step by step](#2-go-live-supabase--vercel-step-by-step)
 3. [The admin panel (staff manual)](#3-the-admin-panel-staff-manual)
-4. [Day-to-day: what you change and where](#4-day-to-day-what-you-change-and-where)
-5. [The script fonts](#5-the-script-fonts)
-6. [Troubleshooting](#6-troubleshooting)
+4. [Changing how many burgers you make](#4-changing-how-many-burgers-you-make-admin--daily-limits)
+5. [Day-to-day: what you change and where](#5-day-to-day-what-you-change-and-where)
+6. [The script fonts](#6-the-script-fonts)
+7. [Troubleshooting](#7-troubleshooting)
 
 ---
 
@@ -129,6 +130,7 @@ Wrong password 6 times → locked for 15 minutes.
      (an underlined number = sold out). Use ‹ › to move between months (past months show your history, future months show what's booked ahead).
      **Tap a day** to see that day's totals and exactly who booked — with Collect / Cancel buttons right there. Tap **SELECT A RANGE**, then the first
      and last day, to total several days (e.g. a weekend or a whole week). The month's totals are shown above the grid. **JUMP TO TODAY** returns to today.
+   - **DAILY LIMITS** — change **how many of each burger you make per day**. See "Changing how many burgers you make" below.
    - **ALL BOOKINGS** — one card per reservation: big **reservation ID** (tap to copy), **name**, **mobile** (tap to call, or WhatsApp),
      burger × quantity, total ₹, date, when it was booked (IST), and whether they accepted the no-show policy.
    - **WHO BOOKED WHAT** — the kitchen/counter list: per burger, per date, everyone who booked, with ID, name, quantity, mobile.
@@ -161,11 +163,34 @@ Customers have no cancel button anywhere; the cancel action only works while sig
 
 ---
 
-## 4. Day-to-day: what you change and where
+## 4. Changing how many burgers you make (admin → DAILY LIMITS)
+
+You decide the number — customers see it **instantly** (counts, bars, calendar, headlines, tickets, page titles; a page a customer already has open updates itself within seconds).
+
+**The general limit (per burger)** — open **DAILY LIMITS**:
+1. Use **−10 / −1 / +1 / +10** or type a number in the big box (0 to 500). You'll see "▲ 10 more than today's 30".
+2. Choose **APPLY FROM**: *Today*, *Tomorrow* or *A date…*. From that day on, every day uses the new number until you change it again. Days that have already passed keep the number they had, so your history stays true.
+3. **REVIEW & SAVE** → a box shows "30 → 40 per day, from today" → **YES, SAVE**.
+
+**Scaling down is protected.** You can never go below what is **already booked**. If you try (e.g. 35 when a day already has 40 booked) you'll see exactly which day and what to do — *"Super Cheese already has 40 booked for Friday, 16 October. Choose 40 or more, or cancel some of those bookings first."* — and nothing changes. The card shows the floor ("Already booked: up to 40 on OCT 16").
+
+**Specific days** — a busy Saturday, a quiet Tuesday, a festival week: in **SPECIFIC DAYS** pick the burger, first and last day and the number. (From the **CALENDAR**, select a day or a range and tap **CHANGE THE DAILY LIMIT FOR THIS DAY →** and the dates are filled in for you.) These **always win over the general limit**, so changing the general limit later never overwrites them. Every other day is unaffected.
+
+**CHANGES & SPECIAL DAYS** lists what's active and what's scheduled. Anything that **hasn't started yet** can be **REMOVED** (it's refused if bookings already made under it would exceed the earlier limit). **REPLACED** = a newer setting now decides those days.
+
+Good to know:
+- Setting a number to **0** stops that burger being booked for those days.
+- The "few left" wording scales with the number (30/day → "almost gone" below 10; 6/day → below 2), and headlines like "30 ONLY. EVERY DAY." follow the live numbers. If the two burgers have different numbers, the headline says "LIMITED. EVERY DAY." and shows each number ("40 + 30").
+- Each customer can still book at most **2** per burger per day (`maximumQuantityPerCustomer` in `config/site.ts`).
+- **One-time database update:** the limits are stored in your database. After deploying this version, paste and Run the updated **`supabase/schema.sql`** in Supabase's SQL Editor (safe to re-run; it never touches your bookings). Until you do, the site keeps working at the built-in 30 / 30 and the Daily limits screen will tell you the update is needed.
+
+---
+
+## 5. Day-to-day: what you change and where
 
 Open `config/site.ts`:
 - Prices: `price` under each burger (currently Super Cheese ₹329, Nashville ₹299).
-- Daily limit: `DAILY_LIMIT` (30 → 40 changes everything).
+- Built-in default daily limit: `DAILY_LIMIT` (30). You normally change the live numbers from the admin panel instead (section 4).
 - Hours: `location.hours` (shown everywhere) and `todayBookingCutoff`.
 - Phone, Instagram, address, Maps link, ingredient descriptions, headline copy.
 - Teaser marquee text at the bottom: `teaserMessage`.
@@ -174,19 +199,20 @@ After editing: commit + push to GitHub → Vercel redeploys automatically (~1 mi
 
 ---
 
-## 5. The script fonts
+## 6. The script fonts
 
 See `public/fonts/README.md`. Until you add the licensed files the burger titles use free look-alike scripts
 (Yellowtail / Lobster). Add the files with the exact names and they switch automatically.
 
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 | Symptom | Cause / fix |
 |---|---|
 | Red banner "SETUP NEEDED" | Supabase keys missing in Vercel (step 3) or you haven't redeployed (step 4). |
 | `/admin` says "Admin is disabled" | `ADMIN_PASSWORD` isn't set in Vercel. |
+| "Daily limits need a one-time database update" | Run the updated `supabase/schema.sql` in the Supabase SQL Editor (section 4). |
 | Collected / cancelled times show nothing | Re-run the updated `supabase/schema.sql` (adds the tracking columns). |
 | Booking says "Something went wrong" | The SQL in step 1 wasn't run, or the keys are wrong/typo'd. Check Vercel → Deployments → Functions logs. |
 | Counts don't go down | Same as above — the site isn't connected to the database. |

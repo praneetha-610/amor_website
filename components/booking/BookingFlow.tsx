@@ -52,7 +52,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
   const [formError, setFormError] = useState<{ message: string; code?: string } | null>(null);
   const [race, setRace] = useState(false);
   const [phase, setPhase] = useState<"idle" | "submitting" | "done">("idle");
-  const [ticket, setTicket] = useState<{ data: TicketData; url: string } | null>(null);
+  const [ticket, setTicket] = useState<{ data: TicketData; url: string; made: number } | null>(null);
   const [showTicket, setShowTicket] = useState(false);
 
   const idemKey = useRef(newKey());
@@ -163,6 +163,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
         const r = out.reservation;
         setTicket({
           url: out.url,
+          made: avail?.limit ?? 0, // how many are made that day (live, admin-editable)
           data: { reservationId: r.reservationId, name: r.name, burger: r.burger, date: r.date, quantity: r.quantity, total: r.total, unitPrice: r.unitPrice, status: r.status },
         });
         setShowTicket(true); // the confirmation pop-up with the reservation ID
@@ -213,7 +214,7 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
 
   return (
     <div className={`booking theme-${burger}`} data-burger={burger}>
-      {showTicket && ticket && <ConfirmedModal ticket={ticket.data} url={ticket.url} onClose={closeTicket} />}
+      {showTicket && ticket && <ConfirmedModal ticket={ticket.data} url={ticket.url} made={ticket.made} onClose={closeTicket} />}
 
       {/* after the pop-up is closed, the ticket stays one tap away */}
       {!showTicket && ticket && (

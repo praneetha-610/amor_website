@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatPrice, getBurger, siteConfig, type BurgerKey } from "@/config/site";
 import { getPublicAvailabilitySafe } from "@/lib/inventory";
+import { getHeadlineLimits } from "@/lib/capacity-server";
 import { BurgerArt } from "./BurgerArt";
 import { BookingFlow } from "./booking/BookingFlow";
 import { LiveInventory } from "./InventoryMeter";
@@ -18,6 +19,7 @@ export async function BurgerPage({ burger }: { burger: BurgerKey }) {
   const cfg = getBurger(burger);
   const other = getBurger(burger === "cheese" ? "nashville" : "cheese");
   const availability = await getPublicAvailabilitySafe();
+  const limit = (await getHeadlineLimits())[burger]; // today's limit for THIS burger (admin-editable)
   const index = burger === "cheese" ? "01" : "02";
 
   return (
@@ -58,7 +60,7 @@ export async function BurgerPage({ burger }: { burger: BurgerKey }) {
         <div className="wrap bp-drop__grid">
           <Reveal>
             <p className="eyebrow">LIMITED DROP</p>
-            <h2 id="drop-title" className="display-lg">{cfg.dailyLimit} BURGERS<br />/ DAY</h2>
+            <h2 id="drop-title" className="display-lg">{limit} BURGERS<br />/ DAY</h2>
             <p className="lede">{cfg.scarcityLine}</p>
           </Reveal>
           <Reveal delay={120}>
@@ -101,7 +103,7 @@ export async function BurgerPage({ burger }: { burger: BurgerKey }) {
         <div className="wrap bp-claim__inner">
           <header className="bp-claim__head">
             <h2 id="claim-title" className="display-xl">{cfg.bookingTitle}</h2>
-            <p className="bp-claim__sub">Only {cfg.dailyLimit} are made each day.</p>
+            <p className="bp-claim__sub">Only {limit} are made each day.</p>
           </header>
           <BookingFlow fixedBurger={burger} initial={availability} />
         </div>

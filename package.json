@@ -8,7 +8,10 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "qa": "node scripts/qa-booking.mjs",
-    "test:dates": "tsx scripts/test-dates.ts"
+    "test:dates": "tsx scripts/test-dates.ts",
+    "test:sql": "node scripts/test-sql.mjs",
+    "test:capacity": "tsx scripts/test-capacity.ts",
+    "qa:capacity": "node scripts/qa-capacity.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -18,6 +21,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

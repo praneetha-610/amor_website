@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Instrument_Serif, Lobster, Yellowtail } from "next/font/google";
-import { siteConfig, siteDescription } from "@/config/site";
+import { siteConfig, siteDescriptionFor } from "@/config/site";
+import { getHeadlineLimits } from "@/lib/capacity-server";
 import "@/styles/base.css";
 import "@/styles/fonts.css";
 import "@/styles/landing.css";
@@ -29,22 +30,25 @@ const standInNashville = Lobster({ subsets: ["latin"], weight: "400", variable: 
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: { default: siteConfig.siteTitle, template: `%s | ${siteConfig.brandName}` },
-  description: siteDescription,
-  applicationName: siteConfig.cafeName,
-  openGraph: {
-    type: "website",
-    siteName: siteConfig.cafeName,
-    title: siteConfig.siteTitle,
-    description: siteDescription,
-    locale: "en_IN",
-    url: "/",
-  },
-  twitter: { card: "summary_large_image", title: siteConfig.siteTitle, description: siteDescription },
-  alternates: { canonical: "/" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const description = siteDescriptionFor(await getHeadlineLimits()); // quotes the LIVE daily limits
+  return {
+    metadataBase: new URL(siteUrl),
+    title: { default: siteConfig.siteTitle, template: `%s | ${siteConfig.brandName}` },
+    description,
+    applicationName: siteConfig.cafeName,
+    openGraph: {
+      type: "website",
+      siteName: siteConfig.cafeName,
+      title: siteConfig.siteTitle,
+      description,
+      locale: "en_IN",
+      url: "/",
+    },
+    twitter: { card: "summary_large_image", title: siteConfig.siteTitle, description },
+    alternates: { canonical: "/" },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#0b0b0b",

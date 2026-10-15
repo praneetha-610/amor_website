@@ -15,6 +15,7 @@
 import { randomUUID } from "node:crypto";
 import { BURGER_KEYS, getBurger, type BurgerKey } from "@/config/site";
 import { addDays, todayIST } from "@/lib/dates";
+import { hasSpecificRule, resolveLimit, type CapacityRule } from "@/lib/capacity";
 import {
   HOLDS_INVENTORY,
   type ClaimedRow,
@@ -29,6 +30,7 @@ import {
 interface DemoState {
   rows: Reservation[];
   idem: Map<string, string>; // idempotency key → reservation_id
+  rules: CapacityRule[]; // admin-editable daily limits
 }
 
 const g = globalThis as unknown as { __amorDemo?: DemoState };
@@ -70,7 +72,7 @@ function state(): DemoState {
   if (!g.__amorDemo) {
     const rows: Reservation[] = [];
     seed(rows);
-    g.__amorDemo = { rows, idem: new Map() };
+    g.__amorDemo = { rows, idem: new Map(), rules: [] };
   }
   return g.__amorDemo;
 }
@@ -119,7 +121,9 @@ export const demoStore: Store = {
     const claimed = s.rows
       .filter((r) => r.burger_type === i.burger && r.reservation_date === i.date && HOLDS_INVENTORY(r.status))
       .reduce((n, r) => n + r.quantity, 0);
-    const remaining = i.dailyLimit - claimed;
+    // The limit for THIS date comes from the admin-editable rules (i.dailyLimit is only the fallback default).
+    const limit = resolveLimit(s.rules, i.burger, i.date, i.dailyLimit);
+    const remaining = limit - claimed;
 
     if (remaining <= 0) return { status: "sold_out" };
     if (i.quantity > remaining) return { status: "not_enough", remaining };
@@ -174,6 +178,60 @@ export const demoStore: Store = {
       })
       .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
       .map((r) => ({ ...r }));
+  },
+
+  async listCapacityRules() {
+    return state().rules.map((r) => ({ ...r }));
+  },
+
+  async setCapacity({ burger, start, end, limit }) {
+    // ── synchronous critical section (no await): the check and the insert are one indivisible step ──
+    const s = state();
+    // refuse if any covered date already holds more than the new limit (same rule as set_capacity() in SQL)
+    const perDate = new Map<string, number>();
+    for (const r of s.rows) {
+      if (r.burger_type !== burger || !HOLDS_INVENTORY(r.status)) continue;
+      if (r.reservation_date < start || (end !== null && r.reservation_date > end)) continue;
+      // a general "onward" rule never overrides a specific-day rule, so those dates aren't affected (and aren't checked)
+      if (end === null && hasSpecificRule(s.rules, burger, r.reservation_date)) continue;
+      perDate.set(r.reservation_date, (perDate.get(r.reservation_date) ?? 0) + r.quantity);
+    }
+    const conflict = [...perDate.entries()].filter(([, n]) => n > limit).sort(([a], [b]) => (a < b ? -1 : 1))[0];
+    if (conflict) return { status: "below_claimed" as const, date: conflict[0], claimed: conflict[1] };
+
+    const last = s.rules.reduce((t, r) => Math.max(t, Date.parse(r.created_at)), 0);
+    const rule: CapacityRule = {
+      id: randomUUID(),
+      burger_type: burger,
+      start_date: start,
+      end_date: end,
+      daily_limit: limit,
+      created_at: new Date(Math.max(Date.now(), last + 1)).toISOString(), // strictly increasing → "newest wins" is unambiguous
+    };
+    s.rules.push(rule);
+    return { status: "ok" as const, rule: { ...rule } };
+  },
+
+  async deleteCapacityRule(id, today, defaults) {
+    const s = state();
+    const i = s.rules.findIndex((r) => r.id === id && r.start_date > today);
+    if (i < 0) return { status: "not_found" as const };
+    const rule = s.rules[i];
+    const without = s.rules.filter((r) => r.id !== id);
+    // would any covered date end up over its (earlier) limit?
+    const perDate = new Map<string, number>();
+    for (const r of s.rows) {
+      if (r.burger_type !== rule.burger_type || !HOLDS_INVENTORY(r.status)) continue;
+      if (r.reservation_date < rule.start_date || (rule.end_date !== null && r.reservation_date > rule.end_date)) continue;
+      perDate.set(r.reservation_date, (perDate.get(r.reservation_date) ?? 0) + r.quantity);
+    }
+    const conflict = [...perDate.entries()]
+      .map(([date, claimed]) => ({ date, claimed, limit: resolveLimit(without, rule.burger_type, date, defaults[rule.burger_type]) }))
+      .filter((x) => x.claimed > x.limit)
+      .sort((a, b) => (a.date < b.date ? -1 : 1))[0];
+    if (conflict) return { status: "below_claimed" as const, ...conflict };
+    s.rules.splice(i, 1);
+    return { status: "ok" as const };
   },
 
   async updateStatus(reservationId, status: ReservationStatus) {

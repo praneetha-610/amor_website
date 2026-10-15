@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BURGER_KEYS, formatPrice, getBurger, reservationTotal, type BurgerKey } from "@/config/site";
 import { addDays, addMonths, dayOfMonth, eachDate, longDate, monthGrid, monthLabel, monthStart, shortDate } from "@/lib/dates";
 import type { AdminData, CalendarMonth } from "@/lib/admin-data";
+import { CapacityPanel } from "./CapacityPanel";
 import type { Reservation, ReservationStatus } from "@/lib/db/types";
 import { lockScroll } from "@/lib/scroll-lock";
 
 type Preset = "today" | "tomorrow" | "upcoming" | "week" | "month" | "custom";
-type View = "list" | "calendar" | "log" | "burger" | "sales";
+type View = "list" | "calendar" | "limits" | "log" | "burger" | "sales";
 
 const NAMES = Object.fromEntries(BURGER_KEYS.map((k) => [k, getBurger(k).shortName])) as Record<BurgerKey, string>;
 const STATUS_LABEL: Record<ReservationStatus, string> = { confirmed: "CONFIRMED", completed: "COLLECTED", cancelled: "CANCELLED", no_show: "NO SHOW" };
@@ -56,6 +57,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
   const [cal, setCal] = useState<CalendarMonth | null>(null);
   const [rangeMode, setRangeMode] = useState(false);
   const [anchor, setAnchor] = useState<string | null>(null);
+  const [limitPrefill, setLimitPrefill] = useState<{ from: string; to: string; n: number } | null>(null);
   const seq = useRef(0);
 
   const choose = (p: Preset) => {
@@ -289,7 +291,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
         <label className="sr-only" htmlFor="a-search">Search by name, mobile number or reservation ID</label>
         <input id="a-search" type="search" className="a-search" placeholder="Search name · mobile · AF-XXXXXX" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" autoCorrect="off" />
       </div>
-      {!searching && <section aria-label="Find reservations" className="a-filters">
+      {!searching && view !== "limits" && <section aria-label="Find reservations" className="a-filters">
         <div className="a-chips" role="group" aria-label="Date range">
           {([["today", "TODAY"], ["tomorrow", "TOMORROW"], ["upcoming", "NEXT 7 DAYS"], ["week", "THIS WEEK"], ["month", "THIS MONTH"], ["custom", "CUSTOM"]] as [Preset, string][]).map(([p, label]) => (
             <button key={p} type="button" aria-pressed={preset === p} onClick={() => choose(p)}>{label}</button>
@@ -319,7 +321,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
 
       {data?.searchedAllDates && <p className="admin-note admin-note--info">Searching <b>all dates</b> for “{q}”. Clear the search to go back to {rangeLabel}.</p>}
 
-      {data && !searching && (
+      {data && !searching && view !== "limits" && (
         <section aria-label={`Totals for ${rangeLabel}`} className="a-totals">
           <div><b>{data.totals.bookings}</b><span>BOOKINGS</span></div>
           <div><b>{data.totals.burgers}</b><span>BURGERS</span></div>
@@ -331,10 +333,10 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
 
       {/* VIEW TABS */}
       {!searching && <div className="a-tabs" role="tablist" aria-label="View">
-        {([["list", "ALL BOOKINGS"], ["calendar", "CALENDAR"], ["log", "COLLECTED LOG"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
+        {([["list", "ALL BOOKINGS"], ["calendar", "CALENDAR"], ["limits", "DAILY LIMITS"], ["log", "COLLECTED LOG"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
           <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}>{label}</button>
         ))}
-        <button className="a-tabs__csv" onClick={exportCsv} disabled={!list.length}>⇩ CSV</button>
+        {view !== "limits" && <button className="a-tabs__csv" onClick={exportCsv} disabled={!list.length}>⇩ CSV</button>}
       </div>}
 
       {!data ? (
@@ -345,6 +347,8 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
         ) : (
           renderCards()
         )
+      ) : shownView === "limits" ? (
+        <CapacityPanel today={today} prefill={limitPrefill} onChanged={() => { void load(); void loadCal(); }} />
       ) : shownView === "calendar" ? (
         <section className="a-cal" aria-label="Sales calendar">
           <div className="a-cal__nav">
@@ -375,7 +379,8 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
               const isEdge = iso === from || iso === to;
               const c = d?.burgers.cheese.sold ?? 0;
               const n = d?.burgers.nashville.sold ?? 0;
-              const cap = d?.burgers.cheese.limit ?? 30;
+              const capC = d?.burgers.cheese.limit ?? 30;
+              const capN = d?.burgers.nashville.limit ?? 30;
               return (
                 <button
                   key={iso}
@@ -385,17 +390,17 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
                   data-edge={isEdge || undefined}
                   data-past={iso < today || undefined}
                   aria-pressed={inRange}
-                  aria-label={`${longDate(iso)}: Super Cheese ${c} sold, Nashville ${n} sold${iso === today ? ", today" : ""}`}
+                  aria-label={`${longDate(iso)}: Super Cheese ${c} of ${capC} sold, Nashville ${n} of ${capN} sold${iso === today ? ", today" : ""}`}
                   onClick={() => pickDay(iso)}
                 >
                   <b>{dayOfMonth(iso)}</b>
-                  <span className="a-cal__c" data-full={c >= cap || undefined}>{c}</span>
-                  <span className="a-cal__n" data-full={n >= cap || undefined}>{n}</span>
+                  <span className="a-cal__c" data-full={c >= capC || undefined}>{c}</span>
+                  <span className="a-cal__n" data-full={n >= capN || undefined}>{n}</span>
                 </button>
               );
             })}
           </div>
-          <p className="a-cal__legend"><i className="k k--c" /> Super Cheese sold <i className="k k--n" /> Nashville sold · out of {cal?.days[0]?.burgers.cheese.limit ?? 30} each per day · underlined = sold out</p>
+          <p className="a-cal__legend"><i className="k k--c" /> Super Cheese sold <i className="k k--n" /> Nashville sold that day · underlined = sold out (the daily limit can differ by day)</p>
 
           {/* the selected day or range, summarised, with the actual bookings underneath */}
           {data && (
@@ -414,6 +419,11 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
                   );
                 })}
               </div>
+              {to >= today && (
+                <button className="a-btn a-cal__limitbtn" onClick={() => { setLimitPrefill({ from: from < today ? today : from, to, n: Date.now() }); setView("limits"); }}>
+                  CHANGE THE DAILY LIMIT FOR {single ? "THIS DAY" : "THESE DAYS"} →
+                </button>
+              )}
               {renderCards()}
               {list.length === 0 && <p className="admin-note">No bookings for this selection.</p>}
             </div>
@@ -429,7 +439,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
               {b.days.length === 0 && <p className="admin-note">Nobody has booked this burger for {rangeLabel}.</p>}
               {b.days.map((d) => (
                 <div key={d.date} className="a-roster__day">
-                  <h4>{longDate(d.date).replace(/ \d{4}$/, "")} <span>{d.qty} / {getBurger(b.burger).dailyLimit}</span></h4>
+                  <h4>{longDate(d.date).replace(/ \d{4}$/, "")} <span>{d.qty} / {data?.daily.find((x) => x.date === d.date)?.burgers[b.burger].limit ?? getBurger(b.burger).dailyLimit}</span></h4>
                   <ol>
                     {d.rows.map((r) => (
                       <li key={r.reservation_id} data-status={r.status}>

@@ -69,6 +69,10 @@ burger pages keep their current bold titles.
 
 Run `supabase/migrations/002_consent_and_price.sql` → deploy → run `003_drop_old_book_burger.sql`. Fresh installs just run `schema.sql`.
 
+## Daily limits (admin-editable)
+
+The number of burgers per day is stored in the database (`capacity_rules`) and edited in **/admin → DAILY LIMITS** — per burger, from a date onward, or for specific days. The database enforces it at booking time (`book_burger` reads the limit itself) and refuses to go below what's already booked. See GUIDE.md §4. Tests: `npm run test:sql`, `test:capacity`, `qa:capacity`.
+
 ## Structure
 
 ```

@@ -22,4 +22,5 @@ export type ErrorCode =
   | "DUPLICATE"
   | "RATE_LIMITED"
   | "NOT_FOUND"
+  | "BELOW_BOOKED"
   | "SERVER";

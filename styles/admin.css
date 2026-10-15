@@ -186,3 +186,64 @@
 .a-cal__sel h3 { font-size: 1.15rem; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 10px; text-transform: uppercase; }
 .a-cal__selgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
 @media (min-width: 720px) { .a-cal__cell { min-height: 92px; } .a-cal__grid { gap: 5px; } .a-cal__cell b { font-size: 0.9375rem; } .a-cal__c, .a-cal__n { max-width: 56px; font-size: 0.8125rem; } .a-cal { max-width: 860px; } }
+
+/* ── daily limits (burgers per day) ── */
+.a-cap { display: grid; gap: 16px; }
+.a-cap__intro { font-size: 0.9375rem; line-height: 1.5; }
+.a-capcard { background: #fff; border: 2px solid var(--ink); border-radius: 10px; padding: 16px; display: grid; gap: 12px; }
+.a-capcard--cheese { border-top: 10px solid var(--yellow); }
+.a-capcard--nashville { border-top: 10px solid var(--red); }
+.a-capcard__head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.a-capcard__head h3 { font-size: 1.1rem; font-weight: 900; letter-spacing: -0.02em; text-transform: uppercase; }
+.a-capcard__head p { font-size: 0.9375rem; }
+.a-capcard__head b { font-size: 2rem; font-weight: 900; letter-spacing: -0.04em; margin-right: 4px; }
+.a-capcard__head span { color: var(--muted); font-size: 0.8125rem; }
+.a-stepper { display: grid; grid-template-columns: 52px 52px minmax(0, 1fr) 52px 52px; gap: 6px; }
+.a-stepper button { height: 56px; border: 2px solid var(--ink); background: #fff; border-radius: var(--r); font-weight: 800; font-size: 0.9375rem; -webkit-tap-highlight-color: transparent; }
+.a-stepper button:active { transform: scale(0.96); }
+.a-stepper input { height: 56px; min-width: 0; width: 100%; text-align: center; font-size: 1.7rem; font-weight: 900; letter-spacing: -0.02em; border: 2px solid var(--ink); border-radius: var(--r); background: #fff; }
+.a-stepper input[aria-invalid="true"] { border-color: var(--red); border-width: 3px; }
+@media (hover: hover) and (pointer: fine) { .a-stepper button:hover { background: var(--ink); color: #fff; } }
+.a-capcard__diff { font-weight: 800; font-size: 0.875rem; }
+.a-capcard__floor { font-size: 0.8125rem; color: var(--muted); line-height: 1.45; }
+.a-capcard__floor b { color: var(--ink); }
+.a-capcard__from { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; min-width: 0; }
+.a-capcard__from legend { font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.18em; padding: 0; margin-bottom: 6px; }
+.a-capcard__date, .a-special label { display: grid; gap: 4px; font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.16em; min-width: 0; }
+.a-capcard__date input, .a-special input { height: 52px; min-width: 0; width: 100%; padding: 0 12px; border: 2px solid var(--ink); border-radius: var(--r); font-size: 1.0625rem; background: #fff; }
+.a-capcard__hint { font-size: 0.75rem; color: var(--muted); }
+.a-capcard__save { width: 100%; flex: none; }
+.a-special { background: #fff; border: 2px solid var(--ink); border-radius: 10px; padding: 16px; display: grid; gap: 12px; scroll-margin-top: 80px; }
+.a-special h3, .a-rules h3 { font-size: 0.8125rem; font-weight: 800; letter-spacing: 0.18em; }
+.a-special__row { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.a-rules { display: grid; gap: 10px; }
+.a-rules ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.a-rules li { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "b n pill" "r r rm"; gap: 6px 10px; align-items: center; padding: 12px 14px; background: #fff; border: 2px solid var(--ink); border-radius: 8px; }
+.a-rules li .a-burger { grid-area: b; }
+.a-rules__n { grid-area: n; font-weight: 900; }
+.a-rules li .a-pill { grid-area: pill; justify-self: end; }
+.a-rules__range { grid-area: r; font-size: 0.875rem; color: var(--muted); }
+.a-rules__rm { grid-area: rm; min-height: 40px; flex: none; justify-self: end; font-size: 0.6875rem; }
+.a-rules__note { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+.a-capdlg__what { margin-bottom: 0; }
+.a-capdlg__big { font-size: 2.2rem; font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; }
+.a-capdlg__big s { color: var(--muted); font-size: 0.7em; }
+.a-capdlg__big small { font-size: 0.4em; letter-spacing: 0.12em; font-weight: 800; }
+.a-cal__limitbtn { width: 100%; flex: none; margin-bottom: 12px; border-style: dashed; }
+@media (min-width: 720px) {
+  .a-cap { grid-template-columns: 1fr 1fr; align-items: start; }
+  .a-cap__intro, .a-special, .a-rules { grid-column: 1 / -1; }
+  .a-special__row { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+/* long confirmations wrap instead of being cut off */
+.a-toast { white-space: normal; text-align: center; border-radius: 14px; width: max-content; max-width: min(92vw, 520px); line-height: 1.35; }
+
+.a-rules li[data-replaced] { opacity: 0.6; border-style: dashed; }
+
+/* the number box must always stay readable, even on a 320px phone */
+.a-stepper { grid-template-columns: 46px 46px minmax(76px, 1fr) 46px 46px; gap: 5px; }
+@media (max-width: 380px) { .a-stepper { grid-template-columns: 40px 40px minmax(72px, 1fr) 40px 40px; gap: 4px; } .a-stepper button { font-size: 0.8125rem; } }
+
+/* inside the limit cards the option chips wrap (not a sideways-swipe row), so nothing is clipped on small phones */
+.a-capcard .a-chips, .a-special .a-chips { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }

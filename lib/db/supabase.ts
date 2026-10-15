@@ -10,6 +10,7 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { BurgerKey } from "@/config/site";
+import type { CapacityRule } from "@/lib/capacity";
 import type {
   ClaimedRow,
   CreateInput,
@@ -37,6 +38,18 @@ function db(): SupabaseClient {
  * (Also keeps the internal idempotency_key out of every response.)
  */
 const COLUMNS = "*";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toRule(r: any): CapacityRule {
+  return {
+    id: r.id,
+    burger_type: r.burger_type,
+    start_date: String(r.start_date).slice(0, 10),
+    end_date: r.end_date ? String(r.end_date).slice(0, 10) : null,
+    daily_limit: Number(r.daily_limit),
+    created_at: r.created_at,
+  };
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toReservation(r: any): Reservation {
@@ -173,6 +186,43 @@ export const supabaseStore: Store = {
       for (const row of data ?? []) seen.set(row.reservation_id, toReservation(row));
     }
     return [...seen.values()].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  },
+
+  /**
+   * Daily limits live in the capacity_rules table (see supabase/schema.sql).
+   * If that table doesn't exist yet (SQL not updated), we behave as "no rules" — the site keeps working at the built-in default.
+   */
+  async listCapacityRules() {
+    const { data, error } = await db().from("capacity_rules").select("*").order("created_at", { ascending: false }).limit(1000);
+    if (error) {
+      if (error.code === "42P01" || error.code === "PGRST205") return [];
+      throw error;
+    }
+    return (data ?? []).map(toRule);
+  },
+
+  async setCapacity({ burger, start, end, limit }) {
+    const { data, error } = await db().rpc("set_capacity", { p_burger: burger, p_start: start, p_end: end, p_limit: limit });
+    if (error) throw error;
+    if (data?.status === "below_claimed") {
+      return { status: "below_claimed" as const, date: String(data.date), claimed: Number(data.claimed) };
+    }
+    // fetch the rule we just created so the caller gets the real row back
+    const { data: row, error: e2 } = await db().from("capacity_rules").select("*").eq("id", data.id).maybeSingle();
+    if (e2) throw e2;
+    return { status: "ok" as const, rule: toRule(row) };
+  },
+
+  async deleteCapacityRule(id, today, defaults) {
+    const { data, error } = await db().rpc("delete_capacity_rule", {
+      p_id: id, p_today: today, p_default_cheese: defaults.cheese, p_default_nashville: defaults.nashville,
+    });
+    if (error) throw error;
+    if (data?.status === "ok") return { status: "ok" as const };
+    if (data?.status === "below_claimed") {
+      return { status: "below_claimed" as const, date: String(data.date), claimed: Number(data.claimed), limit: Number(data.limit) };
+    }
+    return { status: "not_found" as const };
   },
 
   async updateStatus(reservationId, status: ReservationStatus) {

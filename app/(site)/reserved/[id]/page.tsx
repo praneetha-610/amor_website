@@ -4,6 +4,7 @@ import { getBurger, reservationTotal, siteConfig } from "@/config/site";
 import { getStore } from "@/lib/db";
 import { monthDay } from "@/lib/dates";
 import { RESERVATION_ID_RE, verifyConfirmationToken } from "@/lib/security";
+import { limitFor } from "@/lib/capacity-server";
 import { ReservationTicket } from "@/components/ReservationTicket";
 import { ConfirmationActions } from "@/components/ConfirmationActions";
 
@@ -55,6 +56,7 @@ export default async function ConfirmationPage({
   const cancelled = r.status === "cancelled";
   const completed = r.status === "completed";
   const headline = cancelled ? "RESERVATION CANCELLED." : completed ? "ALREADY COLLECTED." : "YOU GOT ONE.";
+  const madeThatDay = await limitFor(r.burger_type, r.reservation_date); // the limit in force for that date
   const total = reservationTotal(r.burger_type, r.quantity, r.unit_price);
   const unit = r.unit_price ?? cfg.price;
 
@@ -66,7 +68,7 @@ export default async function ConfirmationPage({
           <h1 className="ticket__title" data-state={r.status}>{headline}</h1>
           {!cancelled && !completed && (
             <p className="ticket__lede">
-              {siteConfig.dailyLimit} were made.<br />You claimed yours.
+              {madeThatDay} were made.<br />You claimed yours.
             </p>
           )}
         </div>

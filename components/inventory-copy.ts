@@ -1,12 +1,13 @@
-import { siteConfig } from "@/config/site";
+import { statusFor, thresholds } from "@/lib/capacity";
 
 /** Honest scarcity copy. Always derived from the real remaining number. */
 export function inventoryCopy(remaining: number, limit: number) {
   const claimed = Math.max(0, limit - remaining);
   const pct = limit > 0 ? Math.round((claimed / limit) * 100) : 100;
   const soldOut = remaining <= 0;
-  const urgent = !soldOut && remaining < siteConfig.limitedThreshold;
-  const almostGone = !soldOut && remaining < siteConfig.almostGoneThreshold;
+  const t = thresholds(limit); // scales with the limit, so wording stays honest at 6/day or 300/day
+  const urgent = !soldOut && remaining < t.limited;
+  const almostGone = !soldOut && remaining < t.almostGone;
   return {
     claimed,
     pct,
@@ -28,9 +29,4 @@ export function statusText(s: "available" | "limited" | "sold_out") {
   return s === "sold_out" ? "SOLD OUT" : s === "limited" ? "LIMITED" : "AVAILABLE";
 }
 
-/** Client-safe twin of lib/inventory.statusFor (that module is server-only). */
-export function statusFor(remaining: number): "available" | "limited" | "sold_out" {
-  if (remaining <= 0) return "sold_out";
-  if (remaining < siteConfig.limitedThreshold) return "limited";
-  return "available";
-}
+export { statusFor };

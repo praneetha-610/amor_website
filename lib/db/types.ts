@@ -1,4 +1,5 @@
 import type { BurgerKey } from "@/config/site";
+import type { CapacityRule } from "@/lib/capacity";
 
 export type ReservationStatus = "confirmed" | "cancelled" | "completed" | "no_show";
 export const STATUSES: ReservationStatus[] = ["confirmed", "cancelled", "completed", "no_show"];
@@ -60,6 +61,22 @@ export type CreateResult =
   | { status: "consent_required" }
   | { status: "retry" }; // reservation_id collision — caller regenerates the ID
 
+export interface SetCapacityInput {
+  burger: BurgerKey;
+  start: string; // YYYY-MM-DD
+  end: string | null; // null = onward
+  limit: number;
+}
+
+export type SetCapacityResult =
+  | { status: "ok"; rule: CapacityRule }
+  | { status: "below_claimed"; date: string; claimed: number };
+
+export type DeleteCapacityResult =
+  | { status: "ok" }
+  | { status: "not_found" }
+  | { status: "below_claimed"; date: string; claimed: number; limit: number };
+
 export interface ListFilter {
   from: string;
   to: string;
@@ -82,4 +99,13 @@ export interface Store {
   findByMobile(mobile: string): Promise<Reservation[]>;
   listReservations(filter: ListFilter): Promise<Reservation[]>;
   updateStatus(reservationId: string, status: ReservationStatus): Promise<Reservation | null>;
+  /** Every daily-limit rule (see lib/capacity.ts). Empty if none were ever set. */
+  listCapacityRules(): Promise<CapacityRule[]>;
+  /** Add a rule — refused if any date it covers already has more booked than the new limit. */
+  setCapacity(input: SetCapacityInput): Promise<SetCapacityResult>;
+  /**
+   * Remove a rule that has NOT started yet (rules already in force are history). Refused if falling back to
+   * the earlier limit would leave a date with more booked than it allows. `defaults` = built-in limits per burger.
+   */
+  deleteCapacityRule(id: string, today: string, defaults: Record<BurgerKey, number>): Promise<DeleteCapacityResult>;
 }

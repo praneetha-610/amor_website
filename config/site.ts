@@ -28,7 +28,7 @@ export interface BurgerConfig {
   name: string;
   /** Price in rupees. Change it here and it changes everywhere. */
   price: number;
-  /** Per-burger daily cap. Defaults to site-wide dailyLimit. */
+  /** Built-in default daily cap, used until the owner sets a limit in the admin panel (Daily limits tab). */
   dailyLimit: number;
   tagline: string;
   heroTitle: string;
@@ -50,7 +50,7 @@ export interface BurgerConfig {
   alt: string;
 }
 
-const DAILY_LIMIT = 30; // ← 30 burgers → 40 burgers: change this one number.
+const DAILY_LIMIT = 30; // ← the BUILT-IN default per burger. The owner changes the live numbers from /admin → DAILY LIMITS (no code needed).
 
 export const siteConfig = {
   brandName: "AMOR FATI",
@@ -207,9 +207,18 @@ export function formatPrice(price: number): string {
   return `₹${price.toLocaleString("en-IN")}`;
 }
 
-/** Derived text that must follow the config above. */
-export const siteDescription =
-  `Only ${siteConfig.dailyLimit} ${siteConfig.burgers.cheese.displayName} Burgers and ${siteConfig.dailyLimit} ${siteConfig.burgers.nashville.displayName} Fried Chicken Burgers available daily at ${siteConfig.cafeName}, ${siteConfig.city}. Reserve yours before you arrive.`;
+/**
+ * Site description for search/WhatsApp previews. Pass the LIVE limits (admin-editable) so it never quotes a stale number;
+ * `siteDescription` below is the built-in default, used if the database can't be reached.
+ */
+export function siteDescriptionFor(limits: { cheese: number; nashville: number }): string {
+  return `Only ${limits.cheese} ${siteConfig.burgers.cheese.displayName} Burgers and ${limits.nashville} ${siteConfig.burgers.nashville.displayName} Fried Chicken Burgers available daily at ${siteConfig.cafeName}, ${siteConfig.city}. Reserve yours before you arrive.`;
+}
+
+export const siteDescription = siteDescriptionFor({
+  cheese: siteConfig.burgers.cheese.dailyLimit,
+  nashville: siteConfig.burgers.nashville.dailyLimit,
+});
 
 /** Total for a reservation, in rupees. `unitPrice` = price snapshotted at booking time (falls back to current config). */
 export function reservationTotal(burger: BurgerKey, quantity: number, unitPrice?: number | null): number {

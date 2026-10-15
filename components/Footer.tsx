@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { siteConfig } from "@/config/site";
 import { BottomMarquee } from "./BottomMarquee";
+import { onlySentence } from "@/lib/capacity";
+import { getHeadlineLimits } from "@/lib/capacity-server";
 
-export function Footer() {
+export async function Footer() {
+  const h = await getHeadlineLimits();
   const { location, phoneNumber, phoneTel, instagramURL, instagramHandle } = siteConfig;
   return (
     <footer className="footer" data-cta-hide>
@@ -20,7 +23,7 @@ export function Footer() {
         </nav>
       </div>
       <div className="wrap footer__fine">
-        <span>© {new Date().getFullYear()} {siteConfig.cafeName}. {siteConfig.dailyLimit} only. Every day.</span>
+        <span>© {new Date().getFullYear()} {siteConfig.cafeName}. {onlySentence(h)}</span>
       </div>
       <BottomMarquee />
     </footer>

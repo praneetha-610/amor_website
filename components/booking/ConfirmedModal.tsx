@@ -12,7 +12,7 @@ import { ReservationTicket, type TicketData } from "../ReservationTicket";
  * big reservation ID. The customer screenshots it or shows the ID at the cafe, where staff
  * mark it collected in the admin panel.
  */
-export function ConfirmedModal({ ticket, url, onClose }: { ticket: TicketData; url: string; onClose: () => void }) {
+export function ConfirmedModal({ ticket, url, made, onClose }: { ticket: TicketData; url: string; made: number; onClose: () => void }) {
   const cfg = getBurger(ticket.burger);
   const boxRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -50,7 +50,7 @@ export function ConfirmedModal({ ticket, url, onClose }: { ticket: TicketData; u
           <p className="eyebrow">RESERVED ✓</p>
           <h2 id="confirmed-title" className="confirmed__title">YOU GOT ONE.</h2>
           <p className="confirmed__lede">
-            {siteConfig.dailyLimit} were made. You claimed {ticket.quantity > 1 ? `${ticket.quantity}` : "yours"}.
+            {made} were made. You claimed {ticket.quantity > 1 ? `${ticket.quantity}` : "yours"}.
           </p>
         </header>
 
