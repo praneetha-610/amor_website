@@ -291,6 +291,14 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
         <label className="sr-only" htmlFor="a-search">Search by name, mobile number or reservation ID</label>
         <input id="a-search" type="search" className="a-search" placeholder="Search name · mobile · AF-XXXXXX" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" autoCorrect="off" />
       </div>
+      {/* VIEW TABS */}
+      {!searching && <div className="a-tabs" role="tablist" aria-label="View">
+        {([["list", "ALL BOOKINGS"], ["calendar", "CALENDAR"], ["limits", "DAILY LIMITS"], ["log", "COLLECTED LOG"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
+          <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}>{label}</button>
+        ))}
+        {view !== "limits" && <button className="a-tabs__csv" onClick={exportCsv} disabled={!list.length}>⇩ CSV</button>}
+      </div>}
+
       {!searching && view !== "limits" && <section aria-label="Find reservations" className="a-filters">
         <div className="a-chips" role="group" aria-label="Date range">
           {([["today", "TODAY"], ["tomorrow", "TOMORROW"], ["upcoming", "NEXT 7 DAYS"], ["week", "THIS WEEK"], ["month", "THIS MONTH"], ["custom", "CUSTOM"]] as [Preset, string][]).map(([p, label]) => (
@@ -330,14 +338,6 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
           <div><b>{data.totals.cancelled}</b><span>CANCELLED</span></div>
         </section>
       )}
-
-      {/* VIEW TABS */}
-      {!searching && <div className="a-tabs" role="tablist" aria-label="View">
-        {([["list", "ALL BOOKINGS"], ["calendar", "CALENDAR"], ["limits", "DAILY LIMITS"], ["log", "COLLECTED LOG"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
-          <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}>{label}</button>
-        ))}
-        {view !== "limits" && <button className="a-tabs__csv" onClick={exportCsv} disabled={!list.length}>⇩ CSV</button>}
-      </div>}
 
       {!data ? (
         <p className="admin-note">Loading…</p>
