@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/security";
 import { MAX_DAILY_LIMIT } from "@/lib/capacity";
 import { belowBookedMessage, loadCapacityOverview } from "@/lib/admin-capacity";
 import { getStore } from "@/lib/db";
-import { isValidISODate, todayIST } from "@/lib/dates";
+import { firstChangeableDate, isValidISODate, todayIST } from "@/lib/dates";
 import { jsonError, readJson, sameOrigin, serverError } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -38,9 +38,13 @@ export async function POST(req: Request) {
       return jsonError("VALIDATION", `Enter a whole number from 0 to ${MAX_DAILY_LIMIT}.`, 400);
     }
     const today = todayIST();
-    const start = b?.start === undefined || b?.start === null || b?.start === "" ? today : String(b.start);
+    const first = firstChangeableDate(); // today before the evening cutoff, otherwise tomorrow
+    const start = b?.start === undefined || b?.start === null || b?.start === "" ? first : String(b.start);
     if (!isValidISODate(start)) return jsonError("VALIDATION", "That start date isn't valid.", 400);
     if (start < today) return jsonError("VALIDATION", "Changes can't start in the past — past days keep the limit they had.", 400);
+    if (start < first) {
+      return jsonError("VALIDATION", "Today's reservations have already closed, so today's number can't be changed any more. Pick tomorrow or a later day.", 400);
+    }
     let end: string | null = null;
     if (b?.end !== undefined && b?.end !== null && b?.end !== "") {
       end = String(b.end);

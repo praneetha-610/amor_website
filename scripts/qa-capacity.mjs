@@ -37,7 +37,7 @@ console.log(`\nDaily limits · ${BASE}\n`);
 console.log("Baseline");
 {
   const o = await cap();
-  ok(o.ok && o.burgers.cheese.current === 30 && o.burgers.nashville.current === 30 && o.rules.length === 0, "starts at 30 / 30 with no changes", JSON.stringify(o).slice(0, 200));
+  ok(o.ok && o.burgers.cheese.usual === 30 && o.burgers.nashville.usual === 30 && o.rules.length === 0, "starts at 30 / 30 with no changes", JSON.stringify(o).slice(0, 200));
   const a = await availability();
   ok(a.days.every((d) => d.burgers.cheese.limit === 30 && d.burgers.nashville.limit === 30), "every date shows limit 30 for both burgers");
 }
@@ -71,13 +71,14 @@ console.log("\nValidation (friendly messages, nothing saved)");
 
 console.log("\nScale UP");
 const D1 = dayOffset(5);
+const FC = (await cap()).firstChangeable; // first day a change can take effect (tomorrow once today has closed)
 {
   const r = await setCap({ burger: "cheese", limit: 40 });
-  ok(r.status === 200 && r.body.ok && r.body.rule.daily_limit === 40 && r.body.burgers.cheese.current === 40, "Super Cheese → 40 a day, from today", JSON.stringify(r.body).slice(0, 160));
+  ok(r.status === 200 && r.body.ok && r.body.rule.daily_limit === 40 && r.body.burgers.cheese.usual === 40, "Super Cheese → 40 a day, from today", JSON.stringify(r.body).slice(0, 160));
   const d = await day(D1);
   ok(d.burgers.cheese.limit === 40 && d.burgers.cheese.remaining === 40, "customers now see 40 left on a fresh date");
   ok(d.burgers.nashville.limit === 30 && d.burgers.nashville.remaining === 30, "…Nashville is untouched (30)");
-  ok((await availability()).days.every((x) => x.burgers.cheese.limit === 40), "…and every date in the window shows 40");
+  ok((await availability()).days.filter((x) => x.date >= FC).every((x) => x.burgers.cheese.limit === 40), "…and every date from then on in the window shows 40");
   const f = await fill("cheese", D1, 40);
   ok(f.ok && (await day(D1)).burgers.cheese.remaining === 0, "40 Super Cheese can be booked on that date");
   const over = await book({ burger: "cheese", date: D1 });
@@ -100,7 +101,7 @@ console.log("\nScale DOWN is protected");
   ok(ok34.status === 200, "now 34 is allowed");
   const dd = await day(D1);
   ok(dd.burgers.cheese.limit === 34 && dd.burgers.cheese.remaining === 0 && dd.burgers.cheese.status === "sold_out", "that date shows sold out at 34 / 34");
-  const general = (await cap()).rules.filter((r) => r.burger_type === "cheese" && r.end_date === null && r.start_date <= dayOffset(0));
+  const general = (await cap()).rules.filter((r) => r.burger_type === "cheese" && r.end_date === null && r.start_date <= FC && r.effective);
   ok(general.length === 1 && general[0].daily_limit === 34 && general[0].effective, "the list shows only the setting that applies (34) — older, replaced ones that already started are hidden", JSON.stringify(general));
   const fresh = await day(dayOffset(9));
   ok(fresh.burgers.cheese.limit === 34 && fresh.burgers.cheese.remaining === 34, "other dates now show 34 left");
@@ -146,8 +147,10 @@ const S1 = dayOffset(15), S2 = dayOffset(16);
   for (const [id] of bk.ids.slice(0, 8)) await cancel(id); // 16 freed → 34 booked
   ok((await delRule(rule2.id)).status === 200, "after cancelling enough bookings, removal works");
   // a change already in force can't be removed
-  const active = (await cap()).rules.find((x) => x.start_date <= dayOffset(0) && x.daily_limit === 34);
-  ok(active && (await delRule(active.id)).status === 404, "a change already in force can't be removed (it is history)");
+  const active = (await cap()).rules.find((x) => x.start_date <= FC && x.daily_limit === 34);
+  const T0 = (await cap()).today;
+  const inForce = (await cap()).rules.find((x) => x.start_date <= T0 && x.effective);
+  ok(!inForce || (await delRule(inForce.id)).status === 404, "a change already in force can't be removed (it is history)");
 }
 
 console.log("\nReplaced settings are labelled");
@@ -199,7 +202,7 @@ console.log("\nAdmin numbers follow the limits");
   const cd = c.days.find((x) => x.date === dayOffset(11));
   ok(cd.burgers.nashville.limit === 50 && cd.burgers.nashville.sold === 50 && cd.burgers.cheese.limit >= 30, "calendar API: that day's limit is 50, sold 50");
   const o = await cap();
-  ok(o.burgers.cheese.current === 45 && o.burgers.nashville.current === 40 && o.burgers.cheese.floor.claimed >= 34, "limits overview: today's numbers + the floor (most already booked)", JSON.stringify(o.burgers));
+  ok(o.burgers.cheese.usual === 45 && o.burgers.nashville.usual === 40 && Math.max(0, ...o.burgers.cheese.booked.map((b) => b.claimed)) >= 34, "limits overview: today's numbers + the floor (most already booked)", JSON.stringify(o.burgers));
 }
 
 console.log("\nMany people at once, against a changed limit");
@@ -221,6 +224,28 @@ console.log("\nMany people at once, against a changed limit");
   ]);
   const after = await day(D3);
   ok(after.burgers.cheese.claimed <= after.burgers.cheese.limit, `bookings racing a limit change never leave a day over its limit (${after.burgers.cheese.claimed} / ${after.burgers.cheese.limit})`);
+}
+
+console.log("One day only / closed today");
+{
+  const o = await cap();
+  const t = o.today, a = dayOffset(31), b = dayOffset(32), c = dayOffset(33);
+  const before = await availability();
+  const r = await setCap({ burger: "nashville", limit: 12, start: a, end: a });
+  ok(r.status === 200, "set a single day (start = end)");
+  const d = await availability();
+  const lim = (x, dd) => x.days.find((z) => z.date === dd)?.burgers.nashville.limit;
+  ok(lim(d, dayOffset(30)) === lim(before, dayOffset(30)) && lim(d, b) === lim(before, b) && lim(d, c) === lim(before, c), "the days after a one-day change are untouched");
+  ok((await cap()).burgers.nashville.usual === o.burgers.nashville.usual, "the 'usual' number ignores a one-day change");
+  const cl = await setCap({ burger: "cheese", limit: 5, start: t, end: t });
+  if (o.todayClosed) {
+    ok(cl.status === 400 && /closed/i.test(cl.body.message || ""), "today is past its cutoff: changing today is refused", JSON.stringify(cl.body));
+    ok(o.firstChangeable > t, "overview says the first changeable day is after today");
+  } else {
+    ok(cl.status === 200 || cl.status === 409, "today is still open: changing today is allowed");
+  }
+  const open = await setCap({ burger: "cheese", limit: 31 });
+  ok(open.status === 200 || open.status === 409, "default start is the first changeable day");
 }
 
 console.log(`\n${fail === 0 ? "ALL PASSED" : "FAILURES"} — ${pass} passed, ${fail} failed\n`);

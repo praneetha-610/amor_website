@@ -419,8 +419,8 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
                   );
                 })}
               </div>
-              {to >= today && (
-                <button className="a-btn a-cal__limitbtn" onClick={() => { setLimitPrefill({ from: from < today ? today : from, to, n: Date.now() }); setView("limits"); }}>
+              {to >= (data?.firstChangeable ?? today) && (
+                <button className="a-btn a-cal__limitbtn" onClick={() => { const fc = data?.firstChangeable ?? today; setLimitPrefill({ from: from < fc ? fc : from, to, n: Date.now() }); setView("limits"); }}>
                   CHANGE THE DAILY LIMIT FOR {single ? "THIS DAY" : "THESE DAYS"} →
                 </button>
               )}

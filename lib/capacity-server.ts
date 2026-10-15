@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { getStore } from "@/lib/db";
 import { headlineFrom, limitOn, defaultLimitFor, type CapacityRule, type HeadlineLimits } from "@/lib/capacity";
-import { todayIST } from "@/lib/dates";
+import { firstChangeableDate } from "@/lib/dates";
 import type { BurgerKey } from "@/config/site";
 
 /** All limit rules. Throws if the database is unreachable (callers that must be exact use this). */
@@ -20,9 +20,9 @@ const safeRules = cache(async (): Promise<CapacityRule[]> => {
   }
 });
 
-/** Today's limit for each burger, for headlines, page titles and the share image. */
+/** The usual limit for each burger on the next day customers can book — for headlines, page titles and the share image. */
 export async function getHeadlineLimits(): Promise<HeadlineLimits> {
-  return headlineFrom(await safeRules(), todayIST());
+  return headlineFrom(await safeRules(), firstChangeableDate());
 }
 
 /** The limit for one burger on one date (e.g. "N were made" on a ticket). */

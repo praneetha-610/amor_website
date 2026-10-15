@@ -1,7 +1,7 @@
 import "server-only";
 import { BURGER_KEYS, type BurgerKey } from "@/config/site";
 import { limitOn, type CapacityRule } from "@/lib/capacity";
-import { eachDate, isValidISODate, todayIST } from "@/lib/dates";
+import { eachDate, firstChangeableDate, isValidISODate, todayIST } from "@/lib/dates";
 import { getStore } from "@/lib/db";
 import { HOLDS_INVENTORY, STATUSES, type Reservation, type ReservationStatus } from "@/lib/db/types";
 
@@ -14,6 +14,8 @@ export interface BurgerDay {
 
 export interface AdminData {
   today: string;
+  /** first date whose daily limit can still be changed (today before the cutoff, else tomorrow) */
+  firstChangeable: string;
   from: string;
   to: string;
   todaySummary: Record<BurgerKey, BurgerDay>;
@@ -82,6 +84,7 @@ export async function loadAdminData(opts: {
 
   return {
     today,
+    firstChangeable: firstChangeableDate(),
     from,
     to,
     todaySummary: tally(todayRows, today, rules),

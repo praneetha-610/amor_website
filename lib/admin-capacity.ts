@@ -1,41 +1,51 @@
 import "server-only";
 import { BURGER_KEYS, getBurger, type BurgerKey } from "@/config/site";
-import { hasSpecificRule, limitOn, MAX_DAILY_LIMIT, winningRule, type CapacityRule } from "@/lib/capacity";
-import { addDays, eachDate, longDate, todayIST } from "@/lib/dates";
+import { limitOn, MAX_DAILY_LIMIT, usualLimitOn, winningRule, type CapacityRule } from "@/lib/capacity";
+import { addDays, clock, eachDate, firstChangeableDate, longDate, todayIST } from "@/lib/dates";
 import { getStore } from "@/lib/db";
 
 export interface CapacityOverview {
   today: string;
+  /** today's reservations have closed (past the evening cutoff), so today can no longer be changed */
+  todayClosed: boolean;
+  /** the first date whose limit can still be changed: today before the cutoff, otherwise tomorrow */
+  firstChangeable: string;
   max: number;
   burgers: Record<
     BurgerKey,
     {
-      /** limit in force today */
-      current: number;
-      /** built-in default from config/site.ts (used where no rule applies) */
+      /** the USUAL daily limit (general "from a date onward" setting), ignoring one-off special days */
+      usual: number;
+      /** the limit that actually applies on the first changeable day (differs from `usual` on a special day) */
+      onFirst: number;
+      /** built-in default from config/site.ts (used where no setting applies) */
       configDefault: number;
-      /** the most already booked on any single date from today onward that the general limit governs — the lowest general limit the owner can choose */
-      floor: { claimed: number; date: string | null };
+      /** bookings per future date, so the screen can show "already booked: N on <date>" for the chosen scope */
+      booked: { date: string; claimed: number }[];
     }
   >;
   /**
-   * rules worth showing, soonest first. `effective` = the rule decides the limit on at least one day from today on;
-   * a rule that has started but no longer decides anything is history and is left out.
+   * settings worth showing, soonest first. `effective` = it decides the limit on at least one day from today on;
+   * a setting that has started but no longer decides anything is history and is left out.
    */
   rules: (CapacityRule & { effective: boolean })[];
 }
 
 export async function loadCapacityOverview(): Promise<CapacityOverview> {
   const store = getStore();
-  const today = todayIST();
+  const now = clock();
+  const today = todayIST(now);
+  const firstChangeable = firstChangeableDate(now);
   const [rules, claimed] = await Promise.all([store.listCapacityRules(), store.claimedCounts(today, addDays(today, 400))]);
 
   const burgers = {} as CapacityOverview["burgers"];
   for (const k of BURGER_KEYS) {
-    let top = { claimed: 0, date: null as string | null };
-    // specific-day settings keep their own number, so they don't limit how low the GENERAL limit can go
-    for (const c of claimed) if (c.burger === k && !hasSpecificRule(rules, k, c.date) && c.claimed > top.claimed) top = { claimed: c.claimed, date: c.date };
-    burgers[k] = { current: limitOn(rules, k, today), configDefault: getBurger(k).dailyLimit, floor: top };
+    burgers[k] = {
+      usual: usualLimitOn(rules, k, firstChangeable),
+      onFirst: limitOn(rules, k, firstChangeable),
+      configDefault: getBurger(k).dailyLimit,
+      booked: claimed.filter((c) => c.burger === k && c.date >= firstChangeable && c.claimed > 0).map((c) => ({ date: c.date, claimed: c.claimed })).sort((a, b) => (a.date < b.date ? -1 : 1)),
+    };
   }
 
   const horizon = addDays(today, 450);
@@ -52,7 +62,7 @@ export async function loadCapacityOverview(): Promise<CapacityOverview> {
     .filter((r) => r.effective || r.start_date > today) // replaced rules that already started are just history
     .sort((a, b) => (a.start_date !== b.start_date ? (a.start_date < b.start_date ? -1 : 1) : a.created_at < b.created_at ? 1 : -1));
 
-  return { today, max: MAX_DAILY_LIMIT, burgers, rules: live };
+  return { today, todayClosed: firstChangeable !== today, firstChangeable, max: MAX_DAILY_LIMIT, burgers, rules: live };
 }
 
 /** "Super Cheese already has 34 booked for Wednesday, 28 October." */

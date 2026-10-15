@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BURGER_KEYS, getBurger, type BurgerKey } from "@/config/site";
-import type { CapacityRule } from "@/lib/capacity";
+import { hasSpecificRule, limitOn, type CapacityRule } from "@/lib/capacity";
 import { addDays, longDate, shortDate } from "@/lib/dates";
 import { lockScroll } from "@/lib/scroll-lock";
 
@@ -10,10 +10,15 @@ const NAMES = Object.fromEntries(BURGER_KEYS.map((k) => [k, getBurger(k).shortNa
 
 interface Overview {
   today: string;
+  todayClosed: boolean;
+  firstChangeable: string;
   max: number;
-  burgers: Record<BurgerKey, { current: number; configDefault: number; floor: { claimed: number; date: string | null } }>;
+  burgers: Record<BurgerKey, { usual: number; onFirst: number; configDefault: number; booked: { date: string; claimed: number }[] }>;
   rules: (CapacityRule & { effective: boolean })[];
 }
+
+type Scope = "one" | "onward";
+type When = "first" | "second" | "custom";
 
 /** Save one limit change. Returns an error message (already friendly) or null on success. */
 export async function saveCapacity(body: { burger: BurgerKey; limit: number; start: string; end: string | null }): Promise<string | null> {
@@ -28,53 +33,56 @@ export async function saveCapacity(body: { burger: BurgerKey; limit: number; sta
 }
 
 export function ruleRange(r: Pick<CapacityRule, "start_date" | "end_date">): string {
-  if (r.end_date === null) return `from ${shortDate(r.start_date)} onward`;
+  if (r.end_date === null) return `every day from ${shortDate(r.start_date)} onward`;
   if (r.end_date === r.start_date) return `${shortDate(r.start_date)} only`;
   return `${shortDate(r.start_date)} – ${shortDate(r.end_date)}`;
 }
 
 const digits = (v: string) => v.replace(/\D/g, "").slice(0, 4);
 
-interface Pending { burger: BurgerKey; limit: number; start: string; end: string | null; from: number; label: string }
+interface Pending { burger: BurgerKey; limit: number; start: string; end: string | null; from: number; scope: Scope | "range"; label: string }
 
 export function CapacityPanel({ today, onChanged, prefill }: { today: string; onChanged: () => void; prefill?: { from: string; to: string; n: number } | null }) {
   const [ov, setOv] = useState<Overview | null>(null);
   const [loadErr, setLoadErr] = useState("");
   const [draft, setDraft] = useState<Record<BurgerKey, string>>({ cheese: "", nashville: "" });
-  const [applyFrom, setApplyFrom] = useState<Record<BurgerKey, "today" | "tomorrow" | "date">>({ cheese: "today", nashville: "today" });
-  const [fromDate, setFromDate] = useState<Record<BurgerKey, string>>({ cheese: addDays(today, 2), nashville: addDays(today, 2) });
+  const [scope, setScope] = useState<Record<BurgerKey, Scope>>({ cheese: "one", nashville: "one" }); // safest default: just that one day
+  const [when, setWhen] = useState<Record<BurgerKey, When>>({ cheese: "first", nashville: "first" });
+  const [customDate, setCustomDate] = useState<Record<BurgerKey, string>>({ cheese: "", nashville: "" });
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
-  // special days form
-  const [sp, setSp] = useState({ burger: "cheese" as BurgerKey, from: addDays(today, 1), to: addDays(today, 1), limit: "" });
+  // several-days form
+  const [sp, setSp] = useState({ burger: "cheese" as BurgerKey, from: "", to: "", limit: "" });
 
-  // coming from the calendar with days selected: pre-fill the "specific days" form and bring it into view
+  const load = useCallback(async (resetDraft = false) => {
+    try {
+      const res = await fetch("/api/admin/capacity", { cache: "no-store" });
+      if (res.status === 401) { location.reload(); return; }
+      const out: Overview = await res.json();
+      if (!res.ok) throw new Error();
+      setOv(out);
+      setLoadErr("");
+      setDraft((d) => ({
+        cheese: resetDraft || d.cheese === "" ? String(out.burgers.cheese.usual) : d.cheese,
+        nashville: resetDraft || d.nashville === "" ? String(out.burgers.nashville.usual) : d.nashville,
+      }));
+      setCustomDate((c) => ({ cheese: c.cheese || addDays(out.firstChangeable, 2), nashville: c.nashville || addDays(out.firstChangeable, 2) }));
+      setSp((x) => ({ ...x, from: x.from || out.firstChangeable, to: x.to || out.firstChangeable }));
+    } catch {
+      setLoadErr("Couldn't load the daily limits. Please try again.");
+    }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  // coming from the calendar with days selected: pre-fill the "several days" form and bring it into view
   useEffect(() => {
     if (!prefill) return;
     setSp((x) => ({ ...x, from: prefill.from, to: prefill.to }));
     const t = setTimeout(() => document.getElementById("a-special")?.scrollIntoView({ block: "start" }), 250);
     return () => clearTimeout(t);
   }, [prefill]);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/capacity", { cache: "no-store" });
-      if (res.status === 401) { location.reload(); return; }
-      const out = await res.json();
-      if (!res.ok) throw new Error();
-      setOv(out);
-      setLoadErr("");
-      setDraft((d) => ({
-        cheese: d.cheese === "" ? String(out.burgers.cheese.current) : d.cheese,
-        nashville: d.nashville === "" ? String(out.burgers.nashville.current) : d.nashville,
-      }));
-    } catch {
-      setLoadErr("Couldn't load the daily limits. Please try again.");
-    }
-  }, []);
-  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
     if (!pending) return;
@@ -86,31 +94,49 @@ export function CapacityPanel({ today, onChanged, prefill }: { today: string; on
 
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(""), 4500);
+    const t = setTimeout(() => setNotice(""), 5000);
     return () => clearTimeout(t);
   }, [notice]);
 
-  const startFor = (k: BurgerKey) => (applyFrom[k] === "today" ? today : applyFrom[k] === "tomorrow" ? addDays(today, 1) : fromDate[k]);
+  const first = ov?.firstChangeable ?? today;
+  const dateFor = (k: BurgerKey) => (when[k] === "first" ? first : when[k] === "second" ? addDays(first, 1) : customDate[k] || addDays(first, 2));
+  const dayWord = (d: string) => (d === today ? "today" : d === addDays(today, 1) ? "tomorrow" : longDate(d).replace(/ \d{4}$/, ""));
+
+  /** Most already booked that the chosen scope would have to respect (and which day). */
+  function floorFor(k: BurgerKey): { claimed: number; date: string | null } {
+    if (!ov) return { claimed: 0, date: null };
+    const d = dateFor(k);
+    const booked = ov.burgers[k].booked;
+    if (scope[k] === "one") return { claimed: booked.find((b) => b.date === d)?.claimed ?? 0, date: d };
+    // "every day after": days that have their own special setting keep it, so they don't count
+    let top = { claimed: 0, date: null as string | null };
+    for (const b of booked) if (b.date >= d && !hasSpecificRule(ov.rules, k, b.date) && b.claimed > top.claimed) top = { claimed: b.claimed, date: b.date };
+    return top;
+  }
 
   function review(k: BurgerKey) {
     if (!ov) return;
     const n = Number(draft[k]);
-    const start = startFor(k);
+    const start = dateFor(k);
     const key = `limit-${k}`;
     if (draft[k] === "" || !Number.isInteger(n) || n < 0 || n > ov.max) { setErrs((e) => ({ ...e, [key]: `Enter a whole number from 0 to ${ov.max}.` })); return; }
-    if (start < today) { setErrs((e) => ({ ...e, [key]: "Pick today or a later date." })); return; }
+    if (start < ov.firstChangeable) { setErrs((e) => ({ ...e, [key]: ov.todayClosed ? "Today's reservations have closed — pick tomorrow or later." : "Pick today or a later date." })); return; }
     setErrs((e) => ({ ...e, [key]: "" }));
-    setPending({ burger: k, limit: n, start, end: null, from: ov.burgers[k].current, label: start === today ? "today" : longDate(start).replace(/ \d{4}$/, "") });
+    setPending({
+      burger: k, limit: n, start, end: scope[k] === "one" ? start : null,
+      from: limitOn(ov.rules, k, start),
+      scope: scope[k], label: dayWord(start),
+    });
   }
 
   function reviewSpecial() {
     if (!ov) return;
     const n = Number(sp.limit);
     if (sp.limit === "" || !Number.isInteger(n) || n < 0 || n > ov.max) { setErrs((e) => ({ ...e, special: `Enter a whole number from 0 to ${ov.max}.` })); return; }
-    if (sp.from < today) { setErrs((e) => ({ ...e, special: "Special days must be today or later." })); return; }
+    if (sp.from < ov.firstChangeable) { setErrs((e) => ({ ...e, special: ov.todayClosed ? "Today's reservations have closed — start from tomorrow." : "Start from today or later." })); return; }
     if (sp.to < sp.from) { setErrs((e) => ({ ...e, special: "The last day can't be before the first day." })); return; }
     setErrs((e) => ({ ...e, special: "" }));
-    setPending({ burger: sp.burger, limit: n, start: sp.from, end: sp.to, from: ov.burgers[sp.burger].current, label: sp.from === sp.to ? longDate(sp.from).replace(/ \d{4}$/, "") : `${shortDate(sp.from)} – ${shortDate(sp.to)}` });
+    setPending({ burger: sp.burger, limit: n, start: sp.from, end: sp.to, from: limitOn(ov.rules, sp.burger, sp.from), scope: "range", label: sp.from === sp.to ? longDate(sp.from).replace(/ \d{4}$/, "") : `${shortDate(sp.from)} – ${shortDate(sp.to)}` });
   }
 
   async function confirmSave() {
@@ -119,14 +145,17 @@ export function CapacityPanel({ today, onChanged, prefill }: { today: string; on
     const msg = await saveCapacity({ burger: pending.burger, limit: pending.limit, start: pending.start, end: pending.end });
     setSaving(false);
     if (msg) {
-      setErrs((e) => ({ ...e, [pending.end ? "special" : `limit-${pending.burger}`]: msg }));
+      setErrs((e) => ({ ...e, [pending.scope === "range" ? "special" : `limit-${pending.burger}`]: msg }));
       setPending(null);
       return;
     }
-    setNotice(`${NAMES[pending.burger]} set to ${pending.limit} per day ${pending.end === null ? `from ${pending.label}` : `for ${pending.label}`}. Customers see it now.`);
-    setDraft((d) => ({ ...d, [pending.burger]: pending.end === null && pending.start === today ? String(pending.limit) : d[pending.burger] }));
+    setNotice(
+      `${NAMES[pending.burger]} set to ${pending.limit} per day ${
+        pending.scope === "onward" ? `from ${pending.label} onward` : pending.scope === "one" ? `for ${pending.label} only` : `for ${pending.label}`
+      }. Customers see it now.`,
+    );
     setPending(null);
-    await load();
+    await load(true);
     onChanged();
   }
 
@@ -152,17 +181,26 @@ export function CapacityPanel({ today, onChanged, prefill }: { today: string; on
         How many of each burger you make <b>per day</b>. Customers see a change <b>immediately</b>. Days that have already passed keep the number they had.
       </p>
 
+      {ov.todayClosed && (
+        <p className="a-cap__closed" role="note">Today&apos;s reservations have closed, so today&apos;s numbers are locked. You can change tomorrow ({shortDate(ov.firstChangeable)}) and later days.</p>
+      )}
+
       {BURGER_KEYS.map((k) => {
         const o = ov.burgers[k];
         const n = Number(draft[k]);
-        const floor = o.floor;
-        const diff = Number.isInteger(n) ? n - o.current : 0;
+        const floor = floorFor(k);
+        const day = dateFor(k);
+        const diff = Number.isInteger(n) ? n - o.usual : 0;
+        const choices: [When, string][] = [["first", ov.todayClosed ? "TOMORROW" : "TODAY"], ["second", ov.todayClosed ? shortDate(addDays(first, 1)) : "TOMORROW"], ["custom", "A DATE…"]];
         return (
           <div key={k} className={`a-capcard a-capcard--${k}`}>
             <header className="a-capcard__head">
               <h3>{NAMES[k]}</h3>
-              <p><b>{o.current}</b> per day <span>(today)</span></p>
+              <p><b>{o.usual}</b> per day <span>(usual)</span></p>
             </header>
+            {o.onFirst !== o.usual && (
+              <p className="a-capcard__floor">{dayWord(first) === "today" ? "Today" : dayWord(first).replace(/^./, (c) => c.toUpperCase())} is a special day with <b>{o.onFirst}</b>.</p>
+            )}
 
             <div className="a-stepper" role="group" aria-label={`${NAMES[k]} burgers per day`}>
               <button type="button" onClick={() => setDraft((d) => ({ ...d, [k]: String(Math.max(0, (Number(d[k]) || 0) - 10)) }))} aria-label="Ten fewer">−10</button>
@@ -179,32 +217,44 @@ export function CapacityPanel({ today, onChanged, prefill }: { today: string; on
             </div>
 
             {Number.isInteger(n) && diff !== 0 && draft[k] !== "" && (
-              <p className="a-capcard__diff">{diff > 0 ? `▲ ${diff} more` : `▼ ${-diff} fewer`} than today&apos;s {o.current}</p>
+              <p className="a-capcard__diff">{diff > 0 ? `▲ ${diff} more` : `▼ ${-diff} fewer`} than the usual {o.usual}</p>
             )}
+
+            <fieldset className="a-capcard__from">
+              <legend>WHICH DAY?</legend>
+              <div className="a-chips">
+                {choices.map(([v, label]) => (
+                  <button key={v} type="button" aria-pressed={when[k] === v} onClick={() => setWhen((w) => ({ ...w, [k]: v }))}>{label}</button>
+                ))}
+              </div>
+              {when[k] === "custom" && (
+                <label className="a-capcard__date">DATE
+                  <input type="date" min={first} value={customDate[k]} onChange={(e) => setCustomDate((c) => ({ ...c, [k]: e.target.value }))} />
+                </label>
+              )}
+            </fieldset>
+
+            <fieldset className="a-capcard__from">
+              <legend>HOW MANY DAYS?</legend>
+              <div className="a-chips">
+                <button type="button" aria-pressed={scope[k] === "one"} onClick={() => setScope((c) => ({ ...c, [k]: "one" }))}>ONLY THIS DAY</button>
+                <button type="button" aria-pressed={scope[k] === "onward"} onClick={() => setScope((c) => ({ ...c, [k]: "onward" }))}>THIS DAY &amp; EVERY DAY AFTER</button>
+              </div>
+              <p className="a-capcard__hint">
+                {scope[k] === "one"
+                  ? <>Only <b>{day ? shortDate(day) : ""}</b> changes. Every other day stays as it is.</>
+                  : <>From <b>{day ? shortDate(day) : ""}</b> every day uses this number until you change it again.</>}
+              </p>
+            </fieldset>
 
             <p className="a-capcard__floor">
               {floor.claimed > 0
-                ? <>Already booked: up to <b>{floor.claimed}</b> on {shortDate(floor.date!)}. You can&apos;t go below that.</>
-                : "Nothing is booked yet, so you can choose any number."}
+                ? <>Already booked: <b>{floor.claimed}</b> on {shortDate(floor.date!)}. You can&apos;t go below that.</>
+                : "Nothing is booked for that, so you can choose any number."}
             </p>
 
-            <fieldset className="a-capcard__from">
-              <legend>APPLY FROM</legend>
-              <div className="a-chips">
-                {([["today", "TODAY"], ["tomorrow", "TOMORROW"], ["date", "A DATE…"]] as const).map(([v, label]) => (
-                  <button key={v} type="button" aria-pressed={applyFrom[k] === v} onClick={() => setApplyFrom((a) => ({ ...a, [k]: v }))}>{label}</button>
-                ))}
-              </div>
-              {applyFrom[k] === "date" && (
-                <label className="a-capcard__date">FROM THIS DATE
-                  <input type="date" min={today} value={fromDate[k]} onChange={(e) => setFromDate((f) => ({ ...f, [k]: e.target.value }))} />
-                </label>
-              )}
-              <p className="a-capcard__hint">From that day on, every day uses this number until you change it again.</p>
-            </fieldset>
-
             {errs[`limit-${k}`] && <p className="form__error" role="alert">{errs[`limit-${k}`]}</p>}
-            <button type="button" className="a-btn a-btn--go a-capcard__save" onClick={() => review(k)} disabled={draft[k] === "" || (Number(draft[k]) === o.current && applyFrom[k] === "today")}>
+            <button type="button" className="a-btn a-btn--go a-capcard__save" onClick={() => review(k)} disabled={draft[k] === ""}>
               REVIEW &amp; SAVE
             </button>
           </div>
@@ -219,7 +269,7 @@ export function CapacityPanel({ today, onChanged, prefill }: { today: string; on
           {BURGER_KEYS.map((k) => <button key={k} type="button" aria-pressed={sp.burger === k} onClick={() => setSp((s) => ({ ...s, burger: k }))}>{NAMES[k]}</button>)}
         </div>
         <div className="a-special__row">
-          <label>FIRST DAY<input type="date" min={today} value={sp.from} onChange={(e) => setSp((s) => ({ ...s, from: e.target.value, to: s.to < e.target.value ? e.target.value : s.to }))} /></label>
+          <label>FIRST DAY<input type="date" min={first} value={sp.from} onChange={(e) => setSp((s) => ({ ...s, from: e.target.value, to: s.to < e.target.value ? e.target.value : s.to }))} /></label>
           <label>LAST DAY<input type="date" min={sp.from} value={sp.to} onChange={(e) => setSp((s) => ({ ...s, to: e.target.value }))} /></label>
           <label>BURGERS<input inputMode="numeric" value={sp.limit} placeholder="e.g. 50" onChange={(e) => setSp((s) => ({ ...s, limit: digits(e.target.value) }))} /></label>
         </div>
@@ -261,7 +311,7 @@ export function CapacityPanel({ today, onChanged, prefill }: { today: string; on
             <h2 id="cap-dlg">SAVE NEW LIMIT?</h2>
             <p className="a-capdlg__what"><span className={`a-burger a-burger--${pending.burger}`}>{NAMES[pending.burger]}</span></p>
             <p className="a-capdlg__big"><s>{pending.from}</s> → <b>{pending.limit}</b> <small>per day</small></p>
-            <p>{pending.end === null ? <>From <b>{pending.label}</b> onward.</> : <>For <b>{pending.label}</b> only.</>}</p>
+            <p>{pending.end === null ? <>For <b>{pending.label}</b> <b>and every day after it</b> (until you change it again).</> : pending.end === pending.start ? <>For <b>{pending.label} only</b>. No other day changes.</> : <>For <b>{pending.label}</b> only. No other day changes.</>}</p>
             <p className="a-modal__note">
               {pending.limit > pending.from
                 ? "More burgers go on sale straight away — customers will see the new numbers immediately."

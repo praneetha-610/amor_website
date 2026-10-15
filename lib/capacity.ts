@@ -90,10 +90,23 @@ export interface HeadlineLimits {
   each: number | null;
 }
 
-/** The limit in force TODAY for each burger — what marketing copy ("30 only. Every day.") should quote. */
+/** Only the general "from a date onward" rules — the USUAL limit, ignoring one-off special days. */
+export function generalRules(rules: CapacityRule[]): CapacityRule[] {
+  return rules.filter((r) => r.end_date === null);
+}
+
+/** The usual (general) limit for a burger on a date — what the cafe normally makes, ignoring special days. */
+export function usualLimitOn(rules: CapacityRule[], burger: BurgerKey, date: string): number {
+  return limitOn(generalRules(rules), burger, date);
+}
+
+/**
+ * The USUAL limit for each burger today — what marketing copy ("30 only. Every day.") should quote.
+ * One-off special days are deliberately ignored here so a single busy/quiet day doesn't rewrite the headline.
+ */
 export function headlineFrom(rules: CapacityRule[], today: string): HeadlineLimits {
-  const cheese = limitOn(rules, "cheese", today);
-  const nashville = limitOn(rules, "nashville", today);
+  const cheese = usualLimitOn(rules, "cheese", today);
+  const nashville = usualLimitOn(rules, "nashville", today);
   return { cheese, nashville, total: cheese + nashville, each: cheese === nashville ? cheese : null };
 }
 

@@ -169,7 +169,7 @@ You decide the number — customers see it **instantly** (counts, bars, calendar
 
 **The general limit (per burger)** — open **DAILY LIMITS**:
 1. Use **−10 / −1 / +1 / +10** or type a number in the big box (0 to 500). You'll see "▲ 10 more than today's 30".
-2. Choose **APPLY FROM**: *Today*, *Tomorrow* or *A date…*. From that day on, every day uses the new number until you change it again. Days that have already passed keep the number they had, so your history stays true.
+2. Choose **WHICH DAY?** (today, tomorrow or a date) and **HOW MANY DAYS?**: *Only this day* changes just that one day and nothing else; *This day & every day after* changes that day and all later days until you change it again. Once today's reservations close (10 PM), today is locked and the first day you can change is tomorrow. Days that have already passed keep the number they had, so your history stays true.
 3. **REVIEW & SAVE** → a box shows "30 → 40 per day, from today" → **YES, SAVE**.
 
 **Scaling down is protected.** You can never go below what is **already booked**. If you try (e.g. 35 when a day already has 40 booked) you'll see exactly which day and what to do — *"Super Cheese already has 40 booked for Friday, 16 October. Choose 40 or more, or cancel some of those bookings first."* — and nothing changes. The card shows the floor ("Already booked: up to 40 on OCT 16").

@@ -106,6 +106,23 @@ export function bookingWindow(now: Date = clock()): { start: string; end: string
   return { start, end };
 }
 
+/** Today's reservations have closed for the evening (past todayBookingCutoff, India time). */
+export function todayCutoffPassed(now: Date = clock()): boolean {
+  const cut = siteConfig.todayBookingCutoff;
+  if (!cut) return false;
+  const [h, m] = cut.split(":").map(Number);
+  return minutesNowIST(now) >= h * 60 + m;
+}
+
+/**
+ * The first date whose daily limit can still be changed. Once today's reservations have closed
+ * (after the cutoff) that day is over for customers, so changing its number would be meaningless — it's tomorrow.
+ */
+export function firstChangeableDate(now: Date = clock()): string {
+  const today = todayIST(now);
+  return todayCutoffPassed(now) ? addDays(today, 1) : today;
+}
+
 /** Switched off by the owner (closedDates / closedWeekdays in config)? */
 export function isClosedDate(iso: string): boolean {
   if (!isValidISODate(iso)) return true;
