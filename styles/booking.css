@@ -284,3 +284,14 @@ button.cal__cell:active { transform: scale(0.96); }
 @media (min-width: 720px) { .cal { padding: 18px 16px 14px; } .cal__cell { min-height: 64px; } .cal__cell b { font-size: 1.1rem; } .cal__grid { gap: 5px; } }
 .cal__for { font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.14em; color: var(--muted); text-align: center; margin: 0 0 10px; }
 .cal__for b { color: var(--ink); }
+
+/* Scarcity Control — availability strip above the reserve button */
+.scarce { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 2px solid var(--ink); border-radius: var(--r); background: #fff; margin: 4px 0 14px; }
+.scarce__dot { flex: none; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 2px var(--ink); }
+.scarce[data-urgent] .scarce__dot { background: var(--red); }
+.scarce[data-soldout] .scarce__dot { background: var(--ink); }
+.scarce__text { min-width: 0; display: grid; gap: 4px; }
+.scarce__count { font-weight: 900; font-size: 0.9375rem; letter-spacing: 0.1em; line-height: 1.25; animation: scarce-in 0.45s var(--ease) both; }
+.scarce__msg { font-size: 0.875rem; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+@keyframes scarce-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .scarce__count { animation: none; } }

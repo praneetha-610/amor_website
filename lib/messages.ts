@@ -23,4 +23,5 @@ export type ErrorCode =
   | "RATE_LIMITED"
   | "NOT_FOUND"
   | "BELOW_BOOKED"
+  | "TOO_MANY"
   | "SERVER";

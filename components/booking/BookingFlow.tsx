@@ -12,6 +12,7 @@ import { inventoryCopy, statusText } from "../inventory-copy";
 import type { TicketData } from "../ReservationTicket";
 import { ConfirmedModal } from "./ConfirmedModal";
 import { DateCalendar } from "./DateCalendar";
+import { ScarcityStrip } from "../ScarcityStrip";
 import { applyLocalBooking, refreshAvailability, useAvailability } from "../useAvailability";
 
 const STATUS_ICON = { available: "●", limited: "◐", sold_out: "✕", closed: "✕" } as const;
@@ -452,6 +453,8 @@ export function BookingFlow({ fixedBurger, initial, initialBurger, initialDate }
                   )}
                 </div>
               )}
+
+              <ScarcityStrip scarcity={data.scarcity} remaining={avail.remaining} />
 
               <button
                 type="submit"

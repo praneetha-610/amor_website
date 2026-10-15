@@ -16,8 +16,10 @@ import { randomUUID } from "node:crypto";
 import { BURGER_KEYS, getBurger, type BurgerKey } from "@/config/site";
 import { addDays, todayIST } from "@/lib/dates";
 import { hasSpecificRule, resolveLimit, type CapacityRule } from "@/lib/capacity";
+import { breakdown, computeHold, DEFAULT_SETTINGS, type ScarcitySettings } from "@/lib/scarcity";
 import {
   HOLDS_INVENTORY,
+  type AuditEntry,
   type ClaimedRow,
   type CreateInput,
   type CreateResult,
@@ -31,6 +33,9 @@ interface DemoState {
   rows: Reservation[];
   idem: Map<string, string>; // idempotency key → reservation_id
   rules: CapacityRule[]; // admin-editable daily limits
+  scarcity: ScarcitySettings;
+  holds: Map<string, number>; // "burger|date" → held back by the owner
+  audit: AuditEntry[];
 }
 
 const g = globalThis as unknown as { __amorDemo?: DemoState };
@@ -72,7 +77,7 @@ function state(): DemoState {
   if (!g.__amorDemo) {
     const rows: Reservation[] = [];
     seed(rows);
-    g.__amorDemo = { rows, idem: new Map(), rules: [] };
+    g.__amorDemo = { rows, idem: new Map(), rules: [], scarcity: { ...DEFAULT_SETTINGS }, holds: new Map(), audit: [] };
   }
   return g.__amorDemo;
 }
@@ -122,8 +127,9 @@ export const demoStore: Store = {
       .filter((r) => r.burger_type === i.burger && r.reservation_date === i.date && HOLDS_INVENTORY(r.status))
       .reduce((n, r) => n + r.quantity, 0);
     // The limit for THIS date comes from the admin-editable rules (i.dailyLimit is only the fallback default).
-    const limit = resolveLimit(s.rules, i.burger, i.date, i.dailyLimit);
-    const remaining = limit - claimed;
+    const stock = resolveLimit(s.rules, i.burger, i.date, i.dailyLimit);
+    // Scarcity Control: stock the owner is holding back isn't for sale while scarcity mode is ON.
+    const remaining = breakdown(stock, claimed, s.holds.get(`${i.burger}|${i.date}`) ?? 0, s.scarcity.enabled).available;
 
     if (remaining <= 0) return { status: "sold_out" };
     if (i.quantity > remaining) return { status: "not_enough", remaining };
@@ -232,6 +238,52 @@ export const demoStore: Store = {
     if (conflict) return { status: "below_claimed" as const, ...conflict };
     s.rules.splice(i, 1);
     return { status: "ok" as const };
+  },
+
+  async getScarcity() {
+    return { ...state().scarcity };
+  },
+
+  async saveScarcity(patch) {
+    const s = state();
+    const previous = { ...s.scarcity };
+    s.scarcity = { ...s.scarcity, ...patch, updated_at: new Date().toISOString() };
+    return { previous, current: { ...s.scarcity } };
+  },
+
+  async listHolds(from, to) {
+    const out: { burger: BurgerKey; date: string; held: number }[] = [];
+    for (const [k, held] of state().holds) {
+      const [burger, date] = k.split("|");
+      if (date >= from && date <= to) out.push({ burger: burger as BurgerKey, date, held });
+    }
+    return out;
+  },
+
+  async adjustHold({ burger, date, op, amount, defaultLimit, clamp }) {
+    // synchronous critical section — nothing can book between the recount and the write
+    const s = state();
+    const stock = resolveLimit(s.rules, burger, date, defaultLimit);
+    const booked = s.rows
+      .filter((r) => r.burger_type === burger && r.reservation_date === date && HOLDS_INVENTORY(r.status))
+      .reduce((n, r) => n + r.quantity, 0);
+    const key = `${burger}|${date}`;
+    const prev = breakdown(stock, booked, s.holds.get(key) ?? 0, true).held;
+    const out = computeHold(op, amount, stock, booked, prev, clamp);
+    if (!out.ok) return { status: "too_many" as const, max: out.max };
+    if (out.held === 0) s.holds.delete(key);
+    else s.holds.set(key, out.held);
+    return { status: "ok" as const, limit: stock, claimed: booked, previous: prev, held: out.held, available: Math.max(0, stock - booked) - out.held };
+  },
+
+  async addAudit(e) {
+    const s = state();
+    s.audit.unshift({ ...e, id: randomUUID(), at: new Date().toISOString() });
+    s.audit.length = Math.min(s.audit.length, 500);
+  },
+
+  async listAudit(limit) {
+    return state().audit.slice(0, limit).map((a) => ({ ...a }));
   },
 
   async updateStatus(reservationId, status: ReservationStatus) {

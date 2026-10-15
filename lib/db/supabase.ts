@@ -11,7 +11,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { BurgerKey } from "@/config/site";
 import type { CapacityRule } from "@/lib/capacity";
+import { DEFAULT_SETTINGS, type ScarcitySettings } from "@/lib/scarcity";
 import type {
+  AuditEntry,
   ClaimedRow,
   CreateInput,
   CreateResult,
@@ -38,6 +40,14 @@ function db(): SupabaseClient {
  * (Also keeps the internal idempotency_key out of every response.)
  */
 const COLUMNS = "*";
+
+/** Postgres / PostgREST codes for "that table doesn't exist (yet)". */
+const MISSING = new Set(["42P01", "PGRST205"]);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toSettings(r: any): ScarcitySettings {
+  return { enabled: !!r.enabled, message: String(r.message), low_threshold: Number(r.low_threshold), updated_at: r.updated_at ?? null };
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toRule(r: any): CapacityRule {
@@ -223,6 +233,71 @@ export const supabaseStore: Store = {
       return { status: "below_claimed" as const, date: String(data.date), claimed: Number(data.claimed), limit: Number(data.limit) };
     }
     return { status: "not_found" as const };
+  },
+
+  /**
+   * Scarcity Control. If the tables don't exist yet (migration 006 not run) we behave as "scarcity OFF, nothing held",
+   * so the site keeps working exactly as before.
+   */
+  async getScarcity() {
+    const { data, error } = await db().from("scarcity_settings").select("*").eq("id", 1).maybeSingle();
+    if (error) {
+      if (MISSING.has(error.code ?? "")) return { ...DEFAULT_SETTINGS };
+      throw error;
+    }
+    return data ? toSettings(data) : { ...DEFAULT_SETTINGS };
+  },
+
+  async saveScarcity(patch) {
+    const previous = await this.getScarcity();
+    const { data, error } = await db()
+      .from("scarcity_settings")
+      .upsert({ id: 1, ...patch, updated_at: new Date().toISOString() }, { onConflict: "id" })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return { previous, current: toSettings(data) };
+  },
+
+  async listHolds(from, to) {
+    const { data, error } = await db().from("scarcity_holds").select("*").gte("hold_date", from).lte("hold_date", to).limit(5000);
+    if (error) {
+      if (MISSING.has(error.code ?? "")) return [];
+      throw error;
+    }
+    return (data ?? []).map((r) => ({ burger: r.burger_type as BurgerKey, date: String(r.hold_date).slice(0, 10), held: Number(r.held) }));
+  },
+
+  async adjustHold({ burger, date, op, amount, defaultLimit, clamp }) {
+    const { data, error } = await db().rpc("adjust_hold", {
+      p_burger: burger, p_date: date, p_op: op, p_amount: amount, p_default: defaultLimit, p_clamp: clamp,
+    });
+    if (error) throw error;
+    if (data?.status === "too_many") return { status: "too_many" as const, max: Number(data.max) };
+    return {
+      status: "ok" as const,
+      limit: Number(data.limit), claimed: Number(data.claimed),
+      previous: Number(data.previous_held), held: Number(data.held), available: Number(data.available),
+    };
+  },
+
+  async addAudit(e) {
+    const { error } = await db().from("admin_audit").insert({
+      actor: e.actor, action: e.action, burger_type: e.burger, hold_date: e.date, previous: e.previous ?? null, new: e.next ?? null, detail: e.detail,
+    });
+    if (error && !MISSING.has(error.code ?? "")) throw error;
+  },
+
+  async listAudit(limit) {
+    const { data, error } = await db().from("admin_audit").select("*").order("at", { ascending: false }).limit(limit);
+    if (error) {
+      if (MISSING.has(error.code ?? "")) return [];
+      throw error;
+    }
+    return (data ?? []).map<AuditEntry>((r) => ({
+      id: String(r.id), at: r.at, actor: r.actor, action: r.action, burger: r.burger_type ?? null,
+      date: r.hold_date ? String(r.hold_date).slice(0, 10) : null, previous: r.previous, next: r.new, detail: r.detail,
+    }));
   },
 
   async updateStatus(reservationId, status: ReservationStatus) {

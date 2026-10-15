@@ -186,6 +186,34 @@ Good to know:
 
 ---
 
+## 4b. Making the drop feel scarce (admin → SCARCITY CONTROL)
+
+Sometimes you make 30 burgers but want customers to see "only 12 left". This tab lets you **hide** part of a day's burgers from the public without selling, deleting or changing anything.
+
+**The four numbers (per burger, per day) — always kept apart:**
+
+| Number | Meaning |
+|---|---|
+| **Total stock** | what you make that day (the Daily Limit) |
+| **Already booked** | burgers customers have reserved (cancelled ones don't count) |
+| **Admin reserved** | burgers *you* are holding back — **not sold, not lost**, you can release them any time |
+| **Available to book** | what customers can book = stock − booked − reserved |
+
+Example: stock 100, booked 25, reserved 35 → customers see **40**. Ten more people book → customers see **30** (reserved stays 35). Release 15 → customers see **45**.
+
+**How to use it**
+1. Pick **WHICH DAY?** and **HOW MANY DAYS?** (*only this day*, or *this day and every open day after it*).
+2. For a burger: type a number under **Custom quantity** and press **SET** ("show customers exactly this many"), or use **HIDE 5 / 10 / 20**, **HIDE or RELEASE a number**, **MAKE ALL REMAINING STOCK AVAILABLE**, or **MARK AS SOLD OUT**.
+3. Under **SCARCITY MODE** switch it **ON**, choose or write the message (`{count}` becomes the live number), set when it turns "urgent", and press **SAVE SETTINGS**. The **Live preview** shows what customers will see.
+
+**Good to know**
+- Scarcity mode **OFF** = customers see the genuine number of burgers left. Your hidden burgers are remembered, just ignored. Nothing is ever deleted or reset.
+- You can never make more burgers available than are actually unbooked, and a change can never touch an existing booking.
+- If someone's booking is cancelled, that burger goes back on sale (the hidden number stays the same).
+- When the available number reaches 0, customers see **SOLD OUT** and the booking is refused by the database itself.
+- **RECENT CHANGES** records every change with the time and the before/after value. (There is one shared admin login, so it shows "admin".)
+- **One-time database update:** run `supabase/migrations/006_scarcity_control.sql` (or the whole updated `supabase/schema.sql`) in the Supabase SQL Editor. Safe to re-run. Until you do, the site works as before and this tab will say the update is needed.
+
 ## 5. Day-to-day: what you change and where
 
 Open `config/site.ts`:
@@ -212,6 +240,7 @@ See `public/fonts/README.md`. Until you add the licensed files the burger titles
 |---|---|
 | Red banner "SETUP NEEDED" | Supabase keys missing in Vercel (step 3) or you haven't redeployed (step 4). |
 | `/admin` says "Admin is disabled" | `ADMIN_PASSWORD` isn't set in Vercel. |
+| "Scarcity Control needs a one-time database update" | Run `supabase/migrations/006_scarcity_control.sql` in the Supabase SQL Editor (section 4b). |
 | "Daily limits need a one-time database update" | Run the updated `supabase/schema.sql` in the Supabase SQL Editor (section 4). |
 | Collected / cancelled times show nothing | Re-run the updated `supabase/schema.sql` (adds the tracking columns). |
 | Booking says "Something went wrong" | The SQL in step 1 wasn't run, or the keys are wrong/typo'd. Check Vercel → Deployments → Functions logs. |

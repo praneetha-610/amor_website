@@ -11,7 +11,9 @@
     "test:dates": "tsx scripts/test-dates.ts",
     "test:sql": "node scripts/test-sql.mjs",
     "test:capacity": "tsx scripts/test-capacity.ts",
-    "qa:capacity": "node scripts/qa-capacity.mjs"
+    "qa:capacity": "node scripts/qa-capacity.mjs",
+    "qa:scarcity": "node scripts/qa-scarcity.mjs",
+    "test:scarcity": "tsx scripts/test-scarcity.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

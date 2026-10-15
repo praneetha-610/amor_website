@@ -1,5 +1,6 @@
 import type { BurgerKey } from "@/config/site";
 import type { CapacityRule } from "@/lib/capacity";
+import type { HoldOp, ScarcitySettings } from "@/lib/scarcity";
 
 export type ReservationStatus = "confirmed" | "cancelled" | "completed" | "no_show";
 export const STATUSES: ReservationStatus[] = ["confirmed", "cancelled", "completed", "no_show"];
@@ -77,6 +78,40 @@ export type DeleteCapacityResult =
   | { status: "not_found" }
   | { status: "below_claimed"; date: string; claimed: number; limit: number };
 
+export interface HoldRow {
+  burger: BurgerKey;
+  date: string;
+  held: number;
+}
+
+export interface AdjustHoldInput {
+  burger: BurgerKey;
+  date: string;
+  op: HoldOp;
+  amount: number;
+  /** built-in limit for this burger (fallback when no rule covers the date) */
+  defaultLimit: number;
+  /** cut an impossible request down instead of refusing it */
+  clamp: boolean;
+}
+
+export type AdjustHoldResult =
+  | { status: "ok"; limit: number; claimed: number; previous: number; held: number; available: number }
+  | { status: "too_many"; max: number };
+
+export interface AuditEntry {
+  id: string;
+  at: string; // ISO
+  actor: string;
+  action: string;
+  burger: BurgerKey | null;
+  date: string | null;
+  previous: unknown;
+  next: unknown;
+  detail: string | null;
+}
+export type NewAuditEntry = Omit<AuditEntry, "id" | "at">;
+
 export interface ListFilter {
   from: string;
   to: string;
@@ -108,4 +143,15 @@ export interface Store {
    * the earlier limit would leave a date with more booked than it allows. `defaults` = built-in limits per burger.
    */
   deleteCapacityRule(id: string, today: string, defaults: Record<BurgerKey, number>): Promise<DeleteCapacityResult>;
+
+  // ── Scarcity Control (see lib/scarcity.ts) ──
+  /** Master switch + message + low-stock threshold. Defaults (OFF) if never saved. */
+  getScarcity(): Promise<ScarcitySettings>;
+  saveScarcity(patch: Partial<Pick<ScarcitySettings, "enabled" | "message" | "low_threshold">>): Promise<{ previous: ScarcitySettings; current: ScarcitySettings }>;
+  /** Stock the owner is holding back, per burger/date, in range. */
+  listHolds(from: string, to: string): Promise<HoldRow[]>;
+  /** Atomic hold change for one burger on one date (same locks as booking). */
+  adjustHold(input: AdjustHoldInput): Promise<AdjustHoldResult>;
+  addAudit(entry: NewAuditEntry): Promise<void>;
+  listAudit(limit: number): Promise<AuditEntry[]>;
 }

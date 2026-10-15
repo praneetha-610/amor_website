@@ -67,7 +67,7 @@ burger pages keep their current bold titles.
 
 ## Database migration (existing live database)
 
-Run `supabase/migrations/002_consent_and_price.sql` → deploy → run `003_drop_old_book_burger.sql`. Fresh installs just run `schema.sql`.
+Run `supabase/migrations/002_consent_and_price.sql` → deploy → run `003_drop_old_book_burger.sql`. Fresh installs just run `schema.sql`. Upgrading an existing database? Run `005_daily_limits.sql` (admin-editable daily limits) and `006_scarcity_control.sql` (Scarcity Control) — both are safe to re-run.
 
 ## Daily limits (admin-editable)
 

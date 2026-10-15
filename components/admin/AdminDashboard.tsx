@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BURGER_KEYS, formatPrice, getBurger, reservationTotal, type BurgerKey } from "@/config/site";
 import { addDays, addMonths, dayOfMonth, eachDate, longDate, monthGrid, monthLabel, monthStart, shortDate } from "@/lib/dates";
 import type { AdminData, CalendarMonth } from "@/lib/admin-data";
+import { ScarcityPanel } from "./ScarcityPanel";
 import { CapacityPanel } from "./CapacityPanel";
 import type { Reservation, ReservationStatus } from "@/lib/db/types";
 import { lockScroll } from "@/lib/scroll-lock";
 
 type Preset = "today" | "tomorrow" | "upcoming" | "week" | "month" | "custom";
-type View = "list" | "calendar" | "limits" | "log" | "burger" | "sales";
+type View = "list" | "calendar" | "limits" | "scarcity" | "log" | "burger" | "sales";
 
 const NAMES = Object.fromEntries(BURGER_KEYS.map((k) => [k, getBurger(k).shortName])) as Record<BurgerKey, string>;
 const STATUS_LABEL: Record<ReservationStatus, string> = { confirmed: "CONFIRMED", completed: "COLLECTED", cancelled: "CANCELLED", no_show: "NO SHOW" };
@@ -293,13 +294,13 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
       </div>
       {/* VIEW TABS */}
       {!searching && <div className="a-tabs" role="tablist" aria-label="View">
-        {([["list", "ALL BOOKINGS"], ["calendar", "CALENDAR"], ["limits", "DAILY LIMITS"], ["log", "COLLECTED LOG"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
+        {([["list", "ALL BOOKINGS"], ["calendar", "CALENDAR"], ["limits", "DAILY LIMITS"], ["scarcity", "SCARCITY CONTROL"], ["log", "COLLECTED LOG"], ["burger", "WHO BOOKED WHAT"], ["sales", "DAILY SALES"]] as [View, string][]).map(([v, label]) => (
           <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}>{label}</button>
         ))}
-        {view !== "limits" && <button className="a-tabs__csv" onClick={exportCsv} disabled={!list.length}>⇩ CSV</button>}
+        {view !== "limits" && view !== "scarcity" && <button className="a-tabs__csv" onClick={exportCsv} disabled={!list.length}>⇩ CSV</button>}
       </div>}
 
-      {!searching && view !== "limits" && <section aria-label="Find reservations" className="a-filters">
+      {!searching && view !== "limits" && view !== "scarcity" && <section aria-label="Find reservations" className="a-filters">
         <div className="a-chips" role="group" aria-label="Date range">
           {([["today", "TODAY"], ["tomorrow", "TOMORROW"], ["upcoming", "NEXT 7 DAYS"], ["week", "THIS WEEK"], ["month", "THIS MONTH"], ["custom", "CUSTOM"]] as [Preset, string][]).map(([p, label]) => (
             <button key={p} type="button" aria-pressed={preset === p} onClick={() => choose(p)}>{label}</button>
@@ -329,7 +330,7 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
 
       {data?.searchedAllDates && <p className="admin-note admin-note--info">Searching <b>all dates</b> for “{q}”. Clear the search to go back to {rangeLabel}.</p>}
 
-      {data && !searching && view !== "limits" && (
+      {data && !searching && view !== "limits" && view !== "scarcity" && (
         <section aria-label={`Totals for ${rangeLabel}`} className="a-totals">
           <div><b>{data.totals.bookings}</b><span>BOOKINGS</span></div>
           <div><b>{data.totals.burgers}</b><span>BURGERS</span></div>
@@ -349,6 +350,8 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
         )
       ) : shownView === "limits" ? (
         <CapacityPanel today={today} prefill={limitPrefill} onChanged={() => { void load(); void loadCal(); }} />
+      ) : shownView === "scarcity" ? (
+        <ScarcityPanel />
       ) : shownView === "calendar" ? (
         <section className="a-cal" aria-label="Sales calendar">
           <div className="a-cal__nav">
