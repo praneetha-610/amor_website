@@ -37,9 +37,9 @@ console.log(`\nDaily limits · ${BASE}\n`);
 console.log("Baseline");
 {
   const o = await cap();
-  ok(o.ok && o.burgers.cheese.usual === 30 && o.burgers.nashville.usual === 30 && o.rules.length === 0, "starts at 30 / 30 with no changes", JSON.stringify(o).slice(0, 200));
+  ok(o.ok && o.burgers.cheese.usual === 20 && o.burgers.nashville.usual === 20 && o.rules.length === 0, "starts at 20 / 20 with no changes", JSON.stringify(o).slice(0, 200));
   const a = await availability();
-  ok(a.days.every((d) => d.burgers.cheese.limit === 30 && d.burgers.nashville.limit === 30), "every date shows limit 30 for both burgers");
+  ok(a.days.every((d) => d.burgers.cheese.limit === 20 && d.burgers.nashville.limit === 20), "every date shows limit 20 for both burgers");
 }
 
 console.log("\nOnly the admin can change limits");
@@ -49,7 +49,7 @@ console.log("\nOnly the admin can change limits");
   ok((await delRule("00000000-0000-0000-0000-000000000000", { "Content-Type": "application/json" })).status === 401, "removing a change without login → 401");
   ok((await setCap({ burger: "cheese", limit: 99 }, { ...H, Origin: "https://evil.example" })).status === 403, "change from another website's origin → 403 (CSRF guard)");
   ok((await fetch(`${BASE}/api/reservations/capacity`, { method: "POST" })).status === 404, "there is no public endpoint to change limits");
-  ok((await availability()).days[2].burgers.cheese.limit === 30, "…and nothing changed");
+  ok((await availability()).days[2].burgers.cheese.limit === 20, "…and nothing changed");
 }
 
 console.log("\nValidation (friendly messages, nothing saved)");
@@ -77,7 +77,7 @@ const FC = (await cap()).firstChangeable; // first day a change can take effect 
   ok(r.status === 200 && r.body.ok && r.body.rule.daily_limit === 40 && r.body.burgers.cheese.usual === 40, "Super Cheese → 40 a day, from today", JSON.stringify(r.body).slice(0, 160));
   const d = await day(D1);
   ok(d.burgers.cheese.limit === 40 && d.burgers.cheese.remaining === 40, "customers now see 40 left on a fresh date");
-  ok(d.burgers.nashville.limit === 30 && d.burgers.nashville.remaining === 30, "…Nashville is untouched (30)");
+  ok(d.burgers.nashville.limit === 20 && d.burgers.nashville.remaining === 20, "…Nashville is untouched (20)");
   ok((await availability()).days.filter((x) => x.date >= FC).every((x) => x.burgers.cheese.limit === 40), "…and every date from then on in the window shows 40");
   const f = await fill("cheese", D1, 40);
   ok(f.ok && (await day(D1)).burgers.cheese.remaining === 0, "40 Super Cheese can be booked on that date");
@@ -113,13 +113,13 @@ const D2 = dayOffset(7), R1 = dayOffset(10), R2 = dayOffset(12);
 {
   let r = await setCap({ burger: "nashville", limit: 12, start: D2, end: D2 });
   ok(r.status === 200, "Nashville: only 12 on one day");
-  ok((await day(D2)).burgers.nashville.limit === 12 && (await day(dayOffset(6))).burgers.nashville.limit === 30 && (await day(dayOffset(8))).burgers.nashville.limit === 30, "that day shows 12; the days either side stay 30");
+  ok((await day(D2)).burgers.nashville.limit === 12 && (await day(dayOffset(6))).burgers.nashville.limit === 20 && (await day(dayOffset(8))).burgers.nashville.limit === 20, "that day shows 12; the days either side stay 20");
   const f = await fill("nashville", D2, 12);
   ok(f.ok, "12 can be booked that day");
   ok((await book({ burger: "nashville", date: D2 })).body.code === "SOLD_OUT", "the 13th is refused");
   ok((await book({ burger: "nashville", date: dayOffset(8) })).body.ok, "the next day is unaffected");
   r = await setCap({ burger: "nashville", limit: 50, start: R1, end: R2 });
-  ok(r.status === 200 && (await day(dayOffset(11))).burgers.nashville.limit === 50 && (await day(dayOffset(13))).burgers.nashville.limit === 30, "a range (3 days) can be raised to 50; the day after stays 30");
+  ok(r.status === 200 && (await day(dayOffset(11))).burgers.nashville.limit === 50 && (await day(dayOffset(13))).burgers.nashville.limit === 20, "a range (3 days) can be raised to 50; the day after stays 20");
   const f50 = await fill("nashville", dayOffset(11), 50);
   ok(f50.ok && (await book({ burger: "nashville", date: dayOffset(11) })).body.code === "SOLD_OUT", "50 fit on a range day, the 51st doesn't");
   var ticketRes = await book({ burger: "nashville", date: dayOffset(12), quantity: 1 });
@@ -163,7 +163,7 @@ console.log("\nReplaced settings are labelled");
   const newer = o.rules.find((r) => r.start_date === E1 && r.daily_limit === 32);
   ok(older && newer && older.effective === false && newer.effective === true, "a scheduled setting that a newer one replaces is marked replaced (effective:false); the newer one is effective");
   ok((await day(E1)).burgers.nashville.limit === 32, "…and customers see the newer number (32)");
-  ok((await delRule(older.id)).status === 200 && (await delRule(newer.id)).status === 200 && (await day(E1)).burgers.nashville.limit === 30, "both can be removed (they haven't started) → back to the default");
+  ok((await delRule(older.id)).status === 200 && (await delRule(newer.id)).status === 200 && (await day(E1)).burgers.nashville.limit === 20, "both can be removed (they haven't started) → back to the default");
 }
 
 console.log("\nWhat customers read: copy, titles, tickets");

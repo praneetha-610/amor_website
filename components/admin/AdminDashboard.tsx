@@ -382,8 +382,8 @@ export function AdminDashboard({ today, demo }: { today: string; demo: boolean }
               const isEdge = iso === from || iso === to;
               const c = d?.burgers.cheese.sold ?? 0;
               const n = d?.burgers.nashville.sold ?? 0;
-              const capC = d?.burgers.cheese.limit ?? 30;
-              const capN = d?.burgers.nashville.limit ?? 30;
+              const capC = d?.burgers.cheese.limit ?? getBurger("cheese").dailyLimit;
+              const capN = d?.burgers.nashville.limit ?? getBurger("nashville").dailyLimit;
               return (
                 <button
                   key={iso}

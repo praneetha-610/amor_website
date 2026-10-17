@@ -48,7 +48,7 @@ export async function BurgerPage({ burger }: { burger: BurgerKey }) {
               <span className="bp-price">{formatPrice(cfg.price)}</span>
             </div>
           </div>
-          <div className="bp-hero__visual">
+          <div className="bp-hero__visual" data-limit={limit}>
             <div className="bp-hero__disc" aria-hidden />
             <BurgerArt burger={burger} className="bp-hero__burger" priority />
           </div>

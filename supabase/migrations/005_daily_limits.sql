@@ -1,7 +1,7 @@
 -- ════════════════════════════════════════════════════════════════
 --  MIGRATION 005 — admin-editable daily limits (burgers per day)
 --  Paste into Supabase → SQL Editor → Run. Safe to repeat. (Re-running the whole schema.sql does the same.)
---  Bookings keep working before AND after: the site falls back to its built-in default (30) until you set a limit.
+--  Bookings keep working before AND after: the site falls back to its built-in default (30 at the time; now 20 — see config/site.ts) until you set a limit.
 -- ════════════════════════════════════════════════════════════════
 
 -- ────────────────────────────────────────────────────────────────

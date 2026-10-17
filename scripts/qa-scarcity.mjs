@@ -37,8 +37,8 @@ console.log("Baseline");
 {
   const o = await overview(D);
   ok(o.status === 200 && o.body.settings.enabled === false, "starts with scarcity OFF");
-  ok(o.body.burgers.cheese.stock === 30 && o.body.burgers.cheese.booked === 0 && o.body.burgers.cheese.held === 0 && o.body.burgers.cheese.available === 30, "stock 30 / booked 0 / reserved 0 / available 30");
-  ok((await day(D)).burgers.cheese.remaining === 30, "customers see 30");
+  ok(o.body.burgers.cheese.stock === 20 && o.body.burgers.cheese.booked === 0 && o.body.burgers.cheese.held === 0 && o.body.burgers.cheese.available === 20, "stock 20 / booked 0 / reserved 0 / available 20");
+  ok((await day(D)).burgers.cheese.remaining === 20, "customers see 20");
 }
 
 console.log("\nThe walk-through (scenarios 1–9)");
@@ -46,33 +46,33 @@ let ids = [];
 {
   const s = await settings({ enabled: true });
   ok(s.status === 200 && s.body.settings.enabled === true, "1 · scarcity mode ON");
-  const h = await hold("cheese", D, "set_available", 20);
-  ok(h.status === 200 && h.body.burgers.cheese.available === 20 && h.body.burgers.cheese.held === 10, "1 · availability set to 20 (10 hidden)", JSON.stringify(h.body.burgers?.cheese));
+  const h = await hold("cheese", D, "set_available", 12);
+  ok(h.status === 200 && h.body.burgers.cheese.available === 12 && h.body.burgers.cheese.held === 8, "1 · availability set to 12 (8 hidden)", JSON.stringify(h.body.burgers?.cheese));
   const pub = await day(D);
-  ok(pub.burgers.cheese.remaining === 20 && pub.burgers.cheese.limit === 20, "2 · website shows 20 burgers");
-  ok(pub.burgers.nashville.remaining === 30, "…Nashville untouched (30)");
+  ok(pub.burgers.cheese.remaining === 12 && pub.burgers.cheese.limit === 12, "2 · website shows 12 burgers");
+  ok(pub.burgers.nashville.remaining === 20, "…Nashville untouched (20)");
   for (let i = 0; i < 5; i++) { const r = await book({ burger: "cheese", date: D }); if (r.body.ok) ids.push(r.body.reservationId); }
   ok(ids.length === 5, "3 · five bookings confirmed");
-  ok((await day(D)).burgers.cheese.remaining === 15, "4 · public availability drops to 15");
+  ok((await day(D)).burgers.cheese.remaining === 7, "4 · public availability drops to 7");
   const o = (await overview(D)).body.burgers.cheese;
-  ok(o.booked === 5 && o.held === 10 && o.available === 15 && o.stock === 30, "…the four numbers stay apart (30 / 5 / 10 / 15)", JSON.stringify(o));
-  const h2 = await hold("cheese", D, "hold", 5);
-  ok(h2.status === 200 && (await day(D)).burgers.cheese.remaining === 10, "5/6 · admin hides 5 more → public 10");
-  const h3 = await hold("cheese", D, "release", 5);
-  ok(h3.status === 200 && (await day(D)).burgers.cheese.remaining === 15, "7/8 · admin releases 5 → public back to 15");
+  ok(o.booked === 5 && o.held === 8 && o.available === 7 && o.stock === 20, "…the four numbers stay apart (20 / 5 / 8 / 7)", JSON.stringify(o));
+  const h2 = await hold("cheese", D, "hold", 3);
+  ok(h2.status === 200 && (await day(D)).burgers.cheese.remaining === 4, "5/6 · admin hides 3 more → public 4");
+  const h3 = await hold("cheese", D, "release", 3);
+  ok(h3.status === 200 && (await day(D)).burgers.cheese.remaining === 7, "7/8 · admin releases 3 → public back to 7");
 }
 
 console.log("\nSold out, races, limits");
 {
   let sold = 0;
-  for (let i = 0; i < 15; i++) { const r = await book({ burger: "cheese", date: D }); if (r.body.ok) sold++; }
-  ok(sold === 15, "9 · the last 15 public burgers are booked");
+  for (let i = 0; i < 7; i++) { const r = await book({ burger: "cheese", date: D }); if (r.body.ok) sold++; }
+  ok(sold === 7, "9 · the last 7 public burgers are booked");
   const pub = await day(D);
   ok(pub.burgers.cheese.remaining === 0 && pub.burgers.cheese.status === "sold_out", "availability reaches 0 → SOLD OUT");
   const r = await book({ burger: "cheese", date: D });
   ok(r.status === 409 && r.body.code === "SOLD_OUT", "…and the server refuses another booking", JSON.stringify(r.body));
   const o = (await overview(D)).body.burgers.cheese;
-  ok(o.booked === 20 && o.held === 10 && o.unallocated === 10, "…10 are still held (not sold, not lost)", JSON.stringify(o));
+  ok(o.booked === 12 && o.held === 8 && o.unallocated === 8, "…8 are still held (not sold, not lost)", JSON.stringify(o));
 
   // two customers, one last burger
   await hold("cheese", D2, "set_available", 1);
@@ -88,11 +88,11 @@ console.log("\nSold out, races, limits");
 
 console.log("\nGuards");
 {
-  const r = await hold("cheese", D3, "set_available", 31);
+  const r = await hold("cheese", D3, "set_available", 21);
   ok(r.status === 409 && r.body.code === "TOO_MANY", "11 · can't make more available than the unbooked stock", JSON.stringify(r.body));
-  const r2 = await hold("cheese", D3, "hold", 31);
+  const r2 = await hold("cheese", D3, "hold", 21);
   ok(r2.status === 409, "…can't hide more than is available");
-  ok((await day(D3)).burgers.cheese.remaining === 30, "…and nothing changed");
+  ok((await day(D3)).burgers.cheese.remaining === 20, "…and nothing changed");
   const bad = await hold("cheese", D3, "set_available", -1);
   ok(bad.status === 400, "negative numbers are refused");
   const past = await hold("cheese", dayOffset(-2), "hold", 5);
@@ -108,7 +108,7 @@ console.log("\nGuards");
   const u2 = await post("/hold", { burger: "cheese", date: D3, scope: "one", op: "sold_out", amount: 0 }, anon);
   const u3 = await overview(D3, anon);
   ok(u1.status === 401 && u2.status === 401 && u3.status === 401, "12 · no login → settings, holds and the overview are all refused (401)");
-  ok((await overview(D3)).body.settings.enabled === true && (await day(D3)).burgers.cheese.remaining === 30, "…and nothing was changed");
+  ok((await overview(D3)).body.settings.enabled === true && (await day(D3)).burgers.cheese.remaining === 20, "…and nothing was changed");
   const wrong = await post("/settings", { enabled: false }, { ...anon, Cookie: "amor_admin=forged" });
   ok(wrong.status === 401, "a forged cookie is refused too");
 }
@@ -120,10 +120,10 @@ console.log("\nExisting bookings survive admin changes");
   await hold("cheese", D, "restore", 0);
   await hold("cheese", D, "set_available", 0);
   const after = (await overview(D)).body.burgers.cheese;
-  ok(after.booked === before && before === 20, "13 · 20 confirmed bookings are unchanged after sold-out / restore / set-to-0");
+  ok(after.booked === before && before === 12, "13 · 12 confirmed bookings are unchanged after sold-out / restore / set-to-0");
   const list = await fetch(`${BASE}/api/admin/data?from=${D}&to=${D}`, { headers: H }).then(J);
   const mine = (list.reservations ?? []).filter((r) => r.burger_type === "cheese" && r.status === "confirmed");
-  ok(mine.length === 20, "…all 20 still confirmed in the admin list", String(mine.length));
+  ok(mine.length === 12, "…all 12 still confirmed in the admin list", String(mine.length));
 }
 
 console.log("\nCancellations");
@@ -144,10 +144,10 @@ console.log("\nEvery day / persistence / OFF");
   const a = await availability();
   const after = a.days.filter((x) => x.date >= W);
   ok(after.every((x) => x.burgers.nashville.remaining === 8), "…each of those days shows 8");
-  ok(a.days.filter((x) => x.date < W && x.date !== D2).every((x) => x.burgers.nashville.remaining === 30), "…earlier days are untouched");
+  ok(a.days.filter((x) => x.date < W && x.date !== D2).every((x) => x.burgers.nashville.remaining === 20), "…earlier days are untouched");
   const big = await hold("nashville", W, "set_available", 50, "window");
   ok(big.status === 200 && big.body.clamped === big.body.days, "an impossible number over many days is cut to what's possible (never over-exposes)");
-  ok((await availability()).days.filter((x) => x.date >= W).every((x) => x.burgers.nashville.remaining === 30), "…so those days show 30, not 50");
+  ok((await availability()).days.filter((x) => x.date >= W).every((x) => x.burgers.nashville.remaining === 20), "…so those days show 20, not 50");
 
   // persistence: brand-new requests see the same settings
   const o = (await overview(D)).body;
@@ -165,7 +165,7 @@ console.log("\nEvery day / persistence / OFF");
   ok((await day(D3)).burgers.cheese.remaining === 12, "(scarcity ON: 12 shown)");
   await settings({ enabled: false });
   const off = await day(D3);
-  ok(off.burgers.cheese.remaining === 30, "15 · scarcity OFF → the genuine 30 is shown", String(off.burgers.cheese.remaining));
+  ok(off.burgers.cheese.remaining === 20, "15 · scarcity OFF → the genuine 20 is shown", String(off.burgers.cheese.remaining));
   ok((await availability()).scarcity.on === false, "…and the public site knows it's OFF");
   const offD = await day(D);
   ok(offD.burgers.cheese.remaining === (await overview(D)).body.burgers.cheese.unallocated, "…genuine count = stock − booked");

@@ -28,11 +28,11 @@
 .theme-cheese .bp-hero__disc { background: #fff; border: 3px solid var(--ink); }
 .theme-cheese .bp-hero .btn--accent { background: var(--ink); color: var(--yellow); }
 .theme-cheese .bp-hero__visual::after {
-  content: "30 / DAY"; position: absolute; right: 2%; top: 6%; width: 96px; height: 96px; display: grid; place-items: center;
+  content: attr(data-limit) "\A/DAY"; position: absolute; right: 2%; top: 6%; width: 96px; height: 96px; display: grid; place-items: center;
   background: var(--ink); color: var(--yellow); border-radius: 50%; font-weight: 900; font-size: 0.95rem; letter-spacing: 0.02em; text-align: center;
   transform: rotate(12deg); line-height: 1.05; animation: pop 0.9s var(--ease) 0.9s both;
 }
-.theme-cheese .bp-hero__visual::after { content: "30\A/DAY"; white-space: pre; }
+.theme-cheese .bp-hero__visual::after { white-space: pre; }
 @media (min-width: 900px) { .theme-cheese .bp-hero__visual::after { width: 120px; height: 120px; font-size: 1.15rem; } }
 
 /* NASHVILLE: hot, urban, black + red slash */

@@ -6,7 +6,7 @@ import { relativeLabel, shortDate } from "@/lib/dates";
 
 /**
  * One burger's live count for the NEXT 3 reservable dates (the full window is in the calendar), side by side:
- *   TODAY OCT 07 · 30 LEFT   |   TOMORROW OCT 08 · 28 LEFT   |   THU OCT 09 · 30 LEFT
+ *   TODAY OCT 07 · 20 LEFT   |   TOMORROW OCT 08 · 28 LEFT   |   THU OCT 09 · 20 LEFT
  * Used everywhere counts appear, so a booking for any date is visible immediately.
  * Pass `selected` + `onSelect` to make the cells a day picker (burger page meter).
  */

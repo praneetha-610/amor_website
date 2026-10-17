@@ -17,7 +17,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (!STATUSES.includes(body?.status as ReservationStatus)) return jsonError("VALIDATION", "Invalid status.", 400);
 
     const next = body!.status as ReservationStatus;
-    // A reservation is for ONE date (each date has its own 30 burgers), so it can only be handed over on that date.
+    // A reservation is for ONE date (each date has its own 20 burgers), so it can only be handed over on that date.
     if (next === "completed") {
       const current = await getStore().getReservation(id);
       if (!current) return jsonError("NOT_FOUND", "Not found.", 404);

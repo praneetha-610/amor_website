@@ -42,13 +42,15 @@ eq("status at 6/day: 3 left is available, 1 left is limited", [statusFor(3, 6), 
 
 console.log("\nHeadline copy follows the live limits\n");
 const same = headlineFrom([], "2026-10-20");
-eq("defaults: 30 + 30", [same.cheese, same.nashville, same.total, same.each], [30, 30, 60, 30]);
-eq("same limits → '30 ONLY. EVERY DAY.' / '30 of each.' / '30 only. Every day.'", [onlyPhrase(same), ofEachPhrase(same), onlySentence(same)], ["30 ONLY. EVERY DAY.", "30 of each.", "30 only. Every day."]);
+eq("defaults: 20 + 20 (40 burgers a day)", [same.cheese, same.nashville, same.total, same.each], [20, 20, 40, 20]);
+eq("same limits → '20 ONLY. EVERY DAY.' / '20 of each.' / '20 only. Every day.'", [onlyPhrase(same), ofEachPhrase(same), onlySentence(same)], ["20 ONLY. EVERY DAY.", "20 of each.", "20 only. Every day."]);
 const both40 = headlineFrom([rule("cheese", "2026-10-01", null, 40), rule("nashville", "2026-10-01", null, 40)], "2026-10-20");
 eq("both raised to 40 → copy says 40", [both40.each, onlyPhrase(both40), both40.total], [40, "40 ONLY. EVERY DAY.", 80]);
 const diff = headlineFrom([rule("cheese", "2026-10-01", null, 45)], "2026-10-20");
-eq("different limits → honest wording, individual numbers kept", [diff.each, onlyPhrase(diff), ofEachPhrase(diff), diff.cheese, diff.nashville, diff.total], [null, "LIMITED. EVERY DAY.", "Limited quantities of each.", 45, 30, 75]);
-eq("a rule that starts in the future doesn't change TODAY's headline", headlineFrom([rule("cheese", "2026-11-01", null, 99)], "2026-10-20").cheese, 30);
+eq("different limits → honest wording, individual numbers kept", [diff.each, onlyPhrase(diff), ofEachPhrase(diff), diff.cheese, diff.nashville, diff.total], [null, "LIMITED. EVERY DAY.", "Limited quantities of each.", 45, 20, 65]);
+eq("a rule that starts in the future doesn't change TODAY's headline", headlineFrom([rule("cheese", "2026-11-01", null, 99)], "2026-10-20").cheese, 20);
+eq("20/day: limited below 7, almost gone below 4", [thresholds(20).limited, thresholds(20).almostGone], [7, 4]);
+eq("status at 20/day: 6 left is limited, 7 is available, 3 is almost gone zone, 0 sold out", [statusFor(6, 20), statusFor(7, 20), statusFor(0, 20)], ["limited", "available", "sold_out"]);
 
 console.log(fail ? `\n${fail} FAILED\n` : "\nALL PASSED\n");
 process.exit(fail ? 1 : 0);

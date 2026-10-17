@@ -2,7 +2,7 @@
 
 > **New here? Read [GUIDE.md](GUIDE.md)** — how the site works, Supabase + Vercel setup step by step, and the admin/staff manual.
 
-Pre-booking site for two limited burgers (30 each, every day) at Amor Fati Cafe, Tirupati.
+Pre-booking site for two limited burgers (20 each, every day) at Amor Fati Cafe, Tirupati.
 Next.js 16 (App Router) · TypeScript · Supabase/PostgreSQL · no UI libraries.
 
 ## Run it now (Demo Mode — no setup)
@@ -31,7 +31,7 @@ server memory (resets on restart) and is seeded with obviously fake "Demo Guest"
 
 ## Edit everything in one file: [`config/site.ts`](config/site.ts)
 
-Daily limit (30 → 40: change `DAILY_LIMIT`), prices, copy, ingredients & descriptions, max quantity per customer,
+Daily limit (20 → 30: change `DAILY_LIMIT`), prices, copy, ingredients & descriptions, max quantity per customer,
 booking window, today's cutoff time, phone / WhatsApp / Instagram / address / map link, payment & consent text.
 Search for `TODO` for placeholders to replace (prices, phone, address, ingredient text).
 

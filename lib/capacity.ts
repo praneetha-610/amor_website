@@ -65,7 +65,7 @@ export function limitOn(rules: CapacityRule[], burger: BurgerKey, date: string):
 
 /**
  * "Few left" thresholds scale with the limit, so the urgency wording stays honest at any size
- * (30/day → limited below 10, almost gone below 5 — exactly as before; 6/day → below 2 / below 1).
+ * (20/day → limited below 7, almost gone below 4; 6/day → below 2 / below 1).
  */
 export function thresholds(limit: number): { limited: number; almostGone: number } {
   return {
@@ -101,7 +101,7 @@ export function usualLimitOn(rules: CapacityRule[], burger: BurgerKey, date: str
 }
 
 /**
- * The USUAL limit for each burger today — what marketing copy ("30 only. Every day.") should quote.
+ * The USUAL limit for each burger today — what marketing copy ("20 only. Every day.") should quote.
  * One-off special days are deliberately ignored here so a single busy/quiet day doesn't rewrite the headline.
  */
 export function headlineFrom(rules: CapacityRule[], today: string): HeadlineLimits {
@@ -110,17 +110,17 @@ export function headlineFrom(rules: CapacityRule[], today: string): HeadlineLimi
   return { cheese, nashville, total: cheese + nashville, each: cheese === nashville ? cheese : null };
 }
 
-/** "30 ONLY. EVERY DAY." — or "LIMITED. EVERY DAY." when the two burgers have different limits. */
+/** "20 ONLY. EVERY DAY." — or "LIMITED. EVERY DAY." when the two burgers have different limits. */
 export function onlyPhrase(h: HeadlineLimits): string {
   return h.each !== null ? `${h.each} ONLY. EVERY DAY.` : "LIMITED. EVERY DAY.";
 }
 
-/** "30 of each." — or "Limited quantities of each." */
+/** "20 of each." — or "Limited quantities of each." */
 export function ofEachPhrase(h: HeadlineLimits): string {
   return h.each !== null ? `${h.each} of each.` : "Limited quantities of each.";
 }
 
-/** "30 only. Every day." (sentence case, for the footer) */
+/** "20 only. Every day." (sentence case, for the footer) */
 export function onlySentence(h: HeadlineLimits): string {
   return h.each !== null ? `${h.each} only. Every day.` : "Limited. Every day.";
 }

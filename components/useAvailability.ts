@@ -71,7 +71,7 @@ function subscribe(cb: () => void) {
   };
 }
 
-/** The daily limits as seen in a payload, e.g. "30|30" — used to notice when the owner changes them. */
+/** The daily limits as seen in a payload, e.g. "20|20" — used to notice when the owner changes them. */
 const limitSignature = (p: AvailabilityPayload) =>
   p.days[0] ? `${p.days[0].burgers.cheese.limit}|${p.days[0].burgers.nashville.limit}` : "";
 let refreshedFor = "";
@@ -87,7 +87,7 @@ export function useAvailability(initial: AvailabilityPayload): AvailabilityPaylo
     () => initial,
   );
   // When the owner changes the daily limit, re-render the server-written wording too
-  // ("30 BURGERS / DAY", page titles…) without losing what the customer typed.
+  // ("20 BURGERS / DAY", page titles…) without losing what the customer typed.
   const router = useRouter();
   const seen = useRef(limitSignature(initial));
   const sig = limitSignature(data);

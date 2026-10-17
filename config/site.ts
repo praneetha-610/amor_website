@@ -48,7 +48,7 @@ export interface BurgerConfig {
   alt: string;
 }
 
-const DAILY_LIMIT = 30; // ← the BUILT-IN default per burger. The owner changes the live numbers from /admin → DAILY LIMITS (no code needed).
+const DAILY_LIMIT = 20; // ← the BUILT-IN default per burger. The owner changes the live numbers from /admin → DAILY LIMITS (no code needed).
 
 export const siteConfig = {
   brandName: "AMOR FATI",
@@ -83,7 +83,7 @@ export const siteConfig = {
   /**
    * How far ahead customers can book, counting today. 30 = today + the next 29 days.
    * The window moves forward by itself at 12:00 AM India time (Asia/Kolkata) — every new date
-   * appears with a fresh 30/30 and nothing ever needs resetting by hand. (Raise it to open further ahead.)
+   * appears with a fresh 20/20 and nothing ever needs resetting by hand. (Raise it to open further ahead.)
    */
   bookingDaysAhead: 30,
   /** Dates when reservations are switched off (holidays etc.), "YYYY-MM-DD". They show as CLOSED. */

@@ -89,7 +89,7 @@ export function DateCalendar({
       </div>
 
       <p className="cal__legend">
-        <span><b>28</b> burgers left</span>
+        <span><b>12</b> burgers left</span>
         <span><i className="cal__key cal__key--limited" aria-hidden /> almost gone</span>
         <span>✕ sold out</span>
         <span>– closed</span>

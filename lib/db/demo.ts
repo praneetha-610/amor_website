@@ -45,9 +45,9 @@ function seed(rows: Reservation[]) {
   const today = todayIST();
   // [day offset, burger, claimed so far]  — clearly fake, labelled "Demo Guest".
   const plan: [number, BurgerKey, number][] = [
-    [0, "cheese", 13], [0, "nashville", 22],
-    [1, "cheese", 4], [1, "nashville", 30],
-    [2, "cheese", 21],
+    [0, "cheese", 9], [0, "nashville", 14],
+    [1, "cheese", 4], [1, "nashville", 20],
+    [2, "cheese", 15],
   ];
   let n = 0;
   for (const [offset, burger, claimed] of plan) {

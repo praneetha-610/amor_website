@@ -4,7 +4,7 @@
  *   npm run qa             (in another)   BASE_URL=http://localhost:3000 by default
  *
  * The booking window is now TODAY + 2 days, so this uses tomorrow and the day after.
- * Start the server with an empty demo store so both dates are 30/30:
+ * Start the server with an empty demo store so both dates are 20/20:
  *     DEMO_SEED=false npm run dev
  * Each server start allows ONE run (the script sells those dates out on purpose).
  */
@@ -41,33 +41,33 @@ const DATE = dayOffset(1);
 console.log(`\nAmor Fati booking QA · ${BASE} · date ${DATE}\n`);
 
 let a = await avail(DATE);
-ok(a && a.burgers.cheese.remaining === 30 && a.burgers.nashville.remaining === 30, "DAY 1 starts at 30 / 30", JSON.stringify(a?.burgers));
+ok(a && a.burgers.cheese.remaining === 20 && a.burgers.nashville.remaining === 20, "DAY 1 starts at 20 / 20", JSON.stringify(a?.burgers));
 
 console.log("\nScenario");
 let r = await book({ burger: "cheese", date: DATE, mobile: mobile(), quantity: 2 });
 ok(r.body.ok, "Customer A books 2 Super Cheese", JSON.stringify(r.body));
 a = await avail(DATE);
-ok(a.burgers.cheese.remaining === 28 && a.burgers.nashville.remaining === 30, "→ 28 Super Cheese / 30 Nashville");
+ok(a.burgers.cheese.remaining === 18 && a.burgers.nashville.remaining === 20, "→ 18 Super Cheese / 20 Nashville");
 
 r = await book({ burger: "nashville", date: DATE, mobile: mobile(), quantity: 1 });
 ok(r.body.ok, "Customer B books 1 Nashville");
 a = await avail(DATE);
-ok(a.burgers.cheese.remaining === 28 && a.burgers.nashville.remaining === 29, "→ 28 Super Cheese / 29 Nashville");
+ok(a.burgers.cheese.remaining === 18 && a.burgers.nashville.remaining === 19, "→ 18 Super Cheese / 19 Nashville");
 
-console.log("\nSell Super Cheese out (14 × 2)");
+console.log("\nSell Super Cheese out (9 × 2)");
 let allOk = true;
-for (let i = 0; i < 14; i++) allOk &&= (await book({ burger: "cheese", date: DATE, mobile: mobile(), quantity: 2 })).body.ok;
-ok(allOk, "14 bookings of 2 all accepted");
+for (let i = 0; i < 9; i++) allOk &&= (await book({ burger: "cheese", date: DATE, mobile: mobile(), quantity: 2 })).body.ok;
+ok(allOk, "9 bookings of 2 all accepted");
 a = await avail(DATE);
 ok(a.burgers.cheese.remaining === 0 && a.burgers.cheese.status === "sold_out", "Super Cheese is SOLD OUT (0 remaining)");
 r = await book({ burger: "cheese", date: DATE, mobile: mobile(), quantity: 1 });
-ok(r.status === 409 && r.body.code === "SOLD_OUT", "31st burger refused with SOLD_OUT", JSON.stringify(r));
+ok(r.status === 409 && r.body.code === "SOLD_OUT", "21st burger refused with SOLD_OUT", JSON.stringify(r));
 ok(r.body.message === "SORRY — THAT LAST BURGER WAS JUST CLAIMED.", "…with the 'last burger' message");
 a = await avail(DATE);
 ok(a.burgers.cheese.remaining === 0, "Inventory never goes negative");
 
 console.log("\nPartial-fit: 2 requested, only 1 left");
-const N = a.burgers.nashville.remaining; // 29
+const N = a.burgers.nashville.remaining; // 19
 for (let i = 0; i < Math.floor((N - 1) / 2); i++) await book({ burger: "nashville", date: DATE, mobile: mobile(), quantity: 2 });
 if ((N - 1) % 2) await book({ burger: "nashville", date: DATE, mobile: mobile(), quantity: 1 });
 a = await avail(DATE);
@@ -84,7 +84,7 @@ const losers = racers.filter((x) => x.body.code === "SOLD_OUT").length;
 ok(winners === 1, `Exactly ONE winner (got ${winners})`);
 ok(losers === 24, `24 told the last one was claimed (got ${losers})`);
 a = await avail(DATE);
-ok(a.burgers.nashville.remaining === 0, "Nashville inventory is 0 — never 31/30");
+ok(a.burgers.nashville.remaining === 0, "Nashville inventory is 0 — never 21/20");
 
 console.log("\nGuards");
 const DATE2 = dayOffset(2);
@@ -115,8 +115,8 @@ ok(r.status === 409 && r.body.code === "DATE_UNAVAILABLE", "Date far beyond the 
   const j = await (await fetch(`${BASE}/api/availability`)).json();
   ok(j.days.length === HORIZON, `Availability lists exactly ${HORIZON} dates`, `got ${j.days.length}`);
   ok(j.days[0].date === j.today && j.days[HORIZON - 1].date === dayOffset(HORIZON - 1), "…from today to the last open day");
-  ok(j.days.every((d) => d.burgers.cheese.limit === 30 && d.burgers.nashville.limit === 30), "Every date has its own 30 + 30");
-  ok(j.days.slice(3).every((d) => d.burgers.cheese.remaining === 30 && d.burgers.nashville.remaining === 30), "Dates further out start at a fresh 30 / 30");
+  ok(j.days.every((d) => d.burgers.cheese.limit === 20 && d.burgers.nashville.limit === 20), "Every date has its own 20 + 20");
+  ok(j.days.slice(3).every((d) => d.burgers.cheese.remaining === 20 && d.burgers.nashville.remaining === 20), "Dates further out start at a fresh 20 / 20");
 }
 
 console.log("\nConsent (mandatory, enforced server-side)");
@@ -141,29 +141,29 @@ console.log("\nBooking a date far ahead (the '28th October' case)");
 {
   const FAR = dayOffset(20);
   const before = await avail(FAR);
-  ok(before && before.bookable && before.burgers.cheese.remaining === 30 && before.burgers.nashville.remaining === 30, "20 days ahead is open and starts at 30 / 30", JSON.stringify(before));
+  ok(before && before.bookable && before.burgers.cheese.remaining === 20 && before.burgers.nashville.remaining === 20, "20 days ahead is open and starts at 20 / 20", JSON.stringify(before));
   const mFar = mobile();
   const rFar = await book({ burger: "cheese", date: FAR, mobile: mFar, name: "Far Ahead", quantity: 2 });
   ok(rFar.body.ok && rFar.body.reservation.date === FAR, "Customer A books 2 Super Cheese for that date");
   // what EVERY other visitor reads
   const seenByOthers = await (await fetch(`${BASE}/api/availability`, { headers: { "X-Forwarded-For": ip() } })).json();
   const f = seenByOthers.days.find((d) => d.date === FAR);
-  ok(f.burgers.cheese.remaining === 28, "Everyone else now sees 28 Super Cheese left", String(f.burgers.cheese.remaining));
-  ok(f.burgers.nashville.remaining === 30, "…Nashville for that date is untouched (30)");
+  ok(f.burgers.cheese.remaining === 18, "Everyone else now sees 18 Super Cheese left", String(f.burgers.cheese.remaining));
+  ok(f.burgers.nashville.remaining === 20, "…Nashville for that date is untouched (20)");
   const nb = [dayOffset(19), dayOffset(21)].map((d) => seenByOthers.days.find((x) => x.date === d).burgers.cheese.remaining);
-  ok(nb[0] === 30 && nb[1] === 30, "…the days either side are untouched (30, 30)");
+  ok(nb[0] === 20 && nb[1] === 20, "…the days either side are untouched (20, 20)");
   ok(f.burgers.cheese.claimed === 2 && f.burgers.cheese.status === "available", "claimed = 2, still 'available'");
-  // customer B takes 1 more, then 26 more to sell it out; nobody can exceed 30
+  // customer B takes 1 more, then 17 more to sell it out; nobody can exceed 20
   const rB = await book({ burger: "cheese", date: FAR, mobile: mobile(), quantity: 1 });
-  ok(rB.body.ok && (await avail(FAR)).burgers.cheese.remaining === 27, "Customer B books 1 → 27 left for everyone");
+  ok(rB.body.ok && (await avail(FAR)).burgers.cheese.remaining === 17, "Customer B books 1 → 17 left for everyone");
   let okAll = true;
-  for (let i = 0; i < 13; i++) okAll &&= (await book({ burger: "cheese", date: FAR, mobile: mobile(), quantity: 2 })).body.ok;
-  ok(okAll && (await avail(FAR)).burgers.cheese.remaining === 1, "13 more bookings of 2 → 1 left");
+  for (let i = 0; i < 8; i++) okAll &&= (await book({ burger: "cheese", date: FAR, mobile: mobile(), quantity: 2 })).body.ok;
+  ok(okAll && (await avail(FAR)).burgers.cheese.remaining === 1, "8 more bookings of 2 → 1 left");
   const last = await book({ burger: "cheese", date: FAR, mobile: mobile(), quantity: 1 });
   ok(last.body.ok && (await avail(FAR)).burgers.cheese.status === "sold_out", "The last burger sells out that date");
   const over = await book({ burger: "cheese", date: FAR, mobile: mobile(), quantity: 1 });
-  ok(over.status === 409 && over.body.code === "SOLD_OUT", "Nobody can book a 31st burger on that far date");
-  ok((await avail(dayOffset(21))).burgers.cheese.remaining === 30 && (await avail(FAR)).burgers.nashville.remaining === 30, "Other days and the other burger are still fully available");
+  ok(over.status === 409 && over.body.code === "SOLD_OUT", "Nobody can book a 21st burger on that far date");
+  ok((await avail(dayOffset(21))).burgers.cheese.remaining === 20 && (await avail(FAR)).burgers.nashville.remaining === 20, "Other days and the other burger are still fully available");
   // the very last open day also works, and the next one doesn't exist yet
   const lastDay = dayOffset(HORIZON - 1);
   const rl = await book({ burger: "nashville", date: lastDay, mobile: mobile(), quantity: 1 });
@@ -217,7 +217,7 @@ console.log("\nStaff check-in: search all dates, collected timestamps");
   ok(s3.reservations.some((r) => r.reservation_id === id), "Searching by name finds it");
   let row = s1.reservations.find((r) => r.reservation_id === id);
   ok(row.collected_at === null, "Not collected yet (collected_at empty)");
-  // A booking for ANOTHER date can't be collected today (each date has its own 30 burgers).
+  // A booking for ANOTHER date can't be collected today (each date has its own 20 burgers).
   const future = await fetch(`${BASE}/api/admin/reservations/${id}`, { method: "PATCH", headers: H, body: JSON.stringify({ status: "completed" }) });
   ok(future.status === 409, "Collecting a booking made for another day is refused (409)");
   const stillConfirmed = (await (await fetch(`${BASE}/api/admin/data?from=${DATE2}&to=${DATE2}&q=${id}`, { headers: H })).json()).reservations[0];
@@ -282,8 +282,8 @@ console.log("\nAdmin (password: ADMIN_PASSWORD, or \"demo\" in demo mode)");
   ok(calUnauth.status === 401, "Admin calendar API requires login");
   const cal = await (await fetch(`${BASE}/api/admin/calendar?month=${month}`, { headers: H })).json();
   const farDay = cal.days.find((d) => d.date === FAR);
-  ok(farDay && farDay.burgers.cheese.sold === 30 && farDay.burgers.nashville.sold === 0, "Admin calendar: that day shows 30 Super Cheese sold, 0 Nashville", JSON.stringify(farDay?.burgers));
-  ok(cal.days.length >= 28 && cal.totals.burgers >= 30, "Admin calendar returns the whole month + month totals");
+  ok(farDay && farDay.burgers.cheese.sold === 20 && farDay.burgers.nashville.sold === 0, "Admin calendar: that day shows 20 Super Cheese sold, 0 Nashville", JSON.stringify(farDay?.burgers));
+  ok(cal.days.length >= 28 && cal.totals.burgers >= 20, "Admin calendar returns the whole month + month totals");
   ok((await fetch(`${BASE}/api/admin/calendar?month=garbage`, { headers: H })).status === 400, "Admin calendar rejects a bad month");
   const pastMonth = await (await fetch(`${BASE}/api/admin/calendar?month=2020-02`, { headers: H })).json();
   ok(pastMonth.days.length === 29 && pastMonth.totals.burgers === 0, "A past month (Feb 2020, leap year) loads: 29 empty days");
