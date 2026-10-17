@@ -62,10 +62,9 @@
   display: flex; gap: 14px; margin-top: clamp(28px, 5vw, 56px); padding: 4px var(--gutter) 24px;
   overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); -webkit-overflow-scrolling: touch; scrollbar-width: thin;
 }
-.ing { flex: 0 0 min(78vw, 300px); scroll-snap-align: start; padding: 22px; border-radius: 8px; min-height: 250px; display: flex; flex-direction: column; }
+.ing { flex: 0 0 min(78vw, 300px); scroll-snap-align: start; padding: 22px; border-radius: 8px; min-height: 180px; display: flex; flex-direction: column; }
 .ing__n { font-weight: 900; font-size: 0.875rem; letter-spacing: 0.1em; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
 .ing__name { margin-top: auto; padding-top: 28px; font-size: 1.45rem; font-weight: 900; letter-spacing: -0.02em; line-height: 1; text-transform: uppercase; }
-.ing__desc { margin-top: 10px; font-size: 0.9375rem; line-height: 1.45; opacity: 0.82; }
 .theme-cheese .ing { background: #fff; border: 2px solid var(--ink); }
 .theme-cheese .ing__n { background: var(--yellow); border: 2px solid var(--ink); }
 .theme-nashville .ing { background: var(--ink); color: #fff; }
@@ -73,7 +72,7 @@
 .theme-nashville .ing__name { color: #fff; }
 @media (min-width: 1000px) {
   .ing-rail { max-width: var(--max); margin-inline: auto; display: grid; grid-template-columns: repeat(3, 1fr); overflow: visible; padding-bottom: 0; }
-  .ing { flex: none; min-height: 280px; }
+  .ing { flex: none; min-height: 200px; }
   @media (hover: hover) and (pointer: fine) { .ing:hover { transform: translateY(-6px) !important; } }
 }
 

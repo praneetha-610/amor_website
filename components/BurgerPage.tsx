@@ -81,7 +81,6 @@ export async function BurgerPage({ burger }: { burger: BurgerKey }) {
             <Reveal as="li" key={ing.name} delay={i * 70} className="ing">
               <span className="ing__n">{String(i + 1).padStart(2, "0")}</span>
               <h3 className="ing__name">{ing.name}</h3>
-              <p className="ing__desc">{ing.description}</p>
             </Reveal>
           ))}
         </ul>

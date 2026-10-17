@@ -10,8 +10,6 @@ export type BurgerKey = "cheese" | "nashville";
 
 export interface Ingredient {
   name: string;
-  /** Replace the placeholder text with the real description. */
-  description: string;
 }
 
 export interface BurgerConfig {
@@ -149,11 +147,11 @@ export const siteConfig = {
       ingredientsTitle: "WHAT'S INSIDE",
       // TODO: replace descriptions with the real recipe notes.
       ingredients: [
-        { name: "THE BUN", description: "Soft, toasted brioche-style bun. Placeholder — replace with your bun details." },
-        { name: "THE PATTY", description: "Thick, seared patty with a proper crust. Placeholder — replace with patty details." },
-        { name: "THE CHEESE", description: "Layers of melted cheese, in generous excess. Placeholder — name your cheeses here." },
-        { name: "THE SAUCE", description: "House cheese sauce, made in small batches. Placeholder — describe the sauce." },
-        { name: "THE EXTRAS", description: "Pickles, onions and finishing touches. Placeholder — list the rest." },
+        { name: "THE BUN" },
+        { name: "THE PATTY" },
+        { name: "THE CHEESE" },
+        { name: "THE SAUCE" },
+        { name: "THE EXTRAS" },
       ],
       alt: "Illustration of the Amor Fati Super Cheese Burger: two seared patties under melting yellow cheese",
     },
@@ -181,12 +179,12 @@ export const siteConfig = {
       bookingTitle: "RESERVE YOURS",
       ingredientsTitle: "BUILT FOR THE CRAVING",
       ingredients: [
-        { name: "CRISPY FRIED CHICKEN", description: "A thick, juicy fillet with a shattering crust. Placeholder — replace with your marinade and fry details." },
-        { name: "PICKLES", description: "Cool, sharp, crunchy — the counterpoint to the heat. Placeholder." },
-        { name: "LETTUCE", description: "Fresh, crisp lettuce for contrast. Placeholder." },
-        { name: "MAYO", description: "Cool creamy mayo to take the edge off. Placeholder." },
-        { name: "NASHVILLE HOT SAUCE", description: "The signature heat. Placeholder — describe your spice level." },
-        { name: "SOFT ROASTED BUN", description: "Soft, roasted bun that holds it all together. Placeholder." },
+        { name: "CRISPY FRIED CHICKEN" },
+        { name: "PICKLES" },
+        { name: "LETTUCE" },
+        { name: "MAYO" },
+        { name: "NASHVILLE HOT SAUCE" },
+        { name: "SOFT ROASTED BUN" },
       ],
       alt: "Illustration of the Amor Fati Nashville Fried Chicken Burger: crispy chicken fillet glazed in hot red sauce",
     },
